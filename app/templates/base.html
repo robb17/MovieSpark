@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.navbar-burger.right {
+    margin-right: 0;
+}
+</style>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MovieSpark</title>
+    <!--<link rel="stylesheet" href="/static/bulma/css/bulma.css" />-->
+    <link rel="stylesheet" href="/static/main.css" /><!--<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.2/css/bulma.min.css" />-->
+</head>
+
+<body>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+      // Get all "navbar-burger" elements
+      const $navbarBurgers = Array.prototype.slice.call(document.querySelectorAll('.navbar-burger'), 0);
+
+      // Check if there are any navbar burgers
+      if ($navbarBurgers.length > 0) {
+
+        // Add a click event on each of them
+        $navbarBurgers.forEach( el => {
+          el.addEventListener('click', () => {
+
+            // Get the target from the "data-target" attribute
+            const target = el.dataset.target;
+            const $target = document.getElementById(target);
+
+            // Toggle the "is-active" class on both the "navbar-burger" and the "navbar-menu"
+            el.classList.toggle('is-active');
+            $target.classList.toggle('is-active');
+            console.log(document.body.clientWidth);
+            if (document.body.clientWidth < 480) {
+                if ($("#logo").css('visibility') == 'visible') {
+                    $("#logo").css('visibility', 'hidden');
+                    $("#logo").css('max-width', '0%');
+                }
+                else {
+                    $("#logo").css('max-width', '100%');
+                    $("#logo").css('visibility', 'visible');
+                }
+            }
+          });
+        });
+      }
+
+    });
+    </script>
+    <nav class="navbar" id="header" aria-label="main navigation">
+        <div class="field is-grouped is-paddingless is-marginless">
+            <div class="navbar-brand" id="logo">
+                <a class="navbar-item" href="{{ url_for('main.index') }}">
+                    <img src="/static/assets/logo.png">
+                </a>
+            </div>
+
+            <div id="navbarMenuHeroA" class="navbar-menu">
+                <div class="navbar-start">
+                    <div class="field is-grouped">
+                        <a href="{{ url_for('main.index') }}" class="navbar-item has-text-white">
+                            Home
+                        </a>
+                        <a href="{{ url_for('main.index') }}" class="navbar-item has-text-white">
+                            About
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="navbar-burger burger right" aria-label="menu" aria-expanded="false" data-target="navbarMenuHeroA">
+                <span class="has-text-white" aria-hidden="true"></span>
+                <span class="has-text-grey-lighter" aria-hidden="true"></span>
+                <span class="has-text-white" aria-hidden="true"></span>
+            </div>
+        </div>
+    </nav>
+<section class="hero is-primary is-fullheight-with-navbar has-background-primary" style="overflow: visible;">
+               {% block content %}
+               {% endblock %}
+        <div class="hero-body" style="overflow: visible;">
+            <div class="container" style="overflow: visible;">
+            </div>
+        </div>
+    </section>
+</body>
+</html>
