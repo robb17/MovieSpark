@@ -4,21 +4,21 @@
 
 <script type="text/javascript">
     $(document).ready(function() {
-    	var negative_width = -$("#start").width();
+    	var negative_width = -$("#hero").width();
     	console.log(negative_width)
 		$("#get_started").click(async function() {
 			$("#start").animate({'margin-left': negative_width, 'margin-right': -negative_width}, 1000, function() {
 				$("#start").remove();
-				var width = $("#parent").width();
-				$("#parent").append('<div class="container" id="select" style="margin-left: 110%; margin-right: -110%; overflow: hidden;"><h1 class="title has-text-centered">What movie would you like us to use as a reference point?</h1><input class="input is-large" type="text" name="movie_name" placeholder="Movie title"><button class="button is-block is-info is-large is-fullwidth">Go!</button></div>')
+				var width = $("#hero").width();
+				$("#parent").append('<div class="box is-mobile is-centered is-fullwidth" id="select" style="margin-left: ' + width + 'px; margin-right: ' + -width + 'px; overflow: hidden;"><div class="column is-centered"><h1 class="title has-text-black">What movie would you like us to use as a reference point?</h1><input class="input is-large" type="text" name="movie_name" placeholder="Movie title"><button class="button is-block is-info is-large is-fullwidth">Go!</button></div></div>')
 				$("#select").animate({'margin-left': 0, 'margin-right': 0}, 1000)
 			});
 		});
 	});
 </script>
 
-<section class="hero is-felt is-bold is-large is-fullheight-with-navbar" style="margin-top: 0px;">
-	<div class="hero-body is-fullheight-with-navbar" id="parent">
+<section class="hero is-felt is-bold is-large is-fullheight-with-navbar" style="margin-top: 0px;" id="hero">
+	<div class="container" id="parent" style="display: flex; align-items: center;">
 		<div class="container" id="start">
 			<h1 class="title">
 			  Home
