@@ -1,35 +1,33 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="hero is-felt is-bold is-large" style="margin-top: 0px;">
-	<div class="hero-body">
-		<div class="container">
+
+<script type="text/javascript">
+    $(document).ready(function() {
+    	var negative_width = -$("#start").width();
+    	console.log(negative_width)
+		$("#get_started").click(async function() {
+			$("#start").animate({'margin-left': negative_width, 'margin-right': -negative_width}, 1000, function() {
+				$("#start").remove();
+				var width = $("#parent").width();
+				$("#parent").append('<div class="container" id="select" style="margin-left: 110%; margin-right: -110%; overflow: hidden;"><h1 class="title has-text-centered">What movie would you like us to use as a reference point?</h1><input class="input is-large" type="text" name="movie_name" placeholder="Movie title"><button class="button is-block is-info is-large is-fullwidth">Go!</button></div>')
+				$("#select").animate({'margin-left': 0, 'margin-right': 0}, 1000)
+			});
+		});
+	});
+</script>
+
+<section class="hero is-felt is-bold is-large is-fullheight-with-navbar" style="margin-top: 0px;">
+	<div class="hero-body is-fullheight-with-navbar" id="parent">
+		<div class="container" id="start">
 			<h1 class="title">
 			  Home
 			</h1>
 			<h2 class="subtitle">
-			  	Find movies you'll love.
+			  	Find movies you'll love with our recommendation system that improves as you use it.<br><b><span style="cursor:pointer" id="get_started">Get started</span></b>
 			</h2>
 		</div>
 	</div>
 </section>
-<div class="hero-body">
-	<div class="container has-text-centered">
-		<h1 class="title">
-		Our Commitments
-		</h1>
-		<div class="columns">
-			<div class="column has-text-left">
-			  		Blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-			</div>
-			<div class="column has-text-left">
-			  		Blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-			</div>
-			<div class="column has-text-left">
-	  			Blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-			</div>
-		</div>
-	</div>
-</div>
 
 {% endblock %}
