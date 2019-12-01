@@ -23,6 +23,7 @@ tag_table = db.Table('tag_table', db.Model.metadata,
 class Movie(db.Model):
 	__tablename__ = 'movie'
 	movie_id = db.Column(db.Integer, primary_key=True)
+	name = db.Column(db.String(1000))
 	rating = db.Column(db.Integer)
 	year_released = db.Column(db.Integer)
 	genres = relationship("Genre", secondary=movie_genre_table, back_populates="movies")
