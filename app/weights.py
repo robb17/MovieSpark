@@ -8,11 +8,11 @@ import csv
 # init_weights2() gets the top 50 tags for each movie and compares between movies
 def init_weights():
     # Read in the tags and relevances for movies
-    weight_reader = csv.reader(open('../ml-20m/genome-scores.csv', newline=''), delimiter=',', quotechar='|')
+    weight_reader = csv.reader(open('../../ml-20m/genome-scores.csv', newline=''), delimiter=',', quotechar='|')
     next(weight_reader)
     movieList = []
     # Read in movie names (FOR DUBUGGING AND TESTING IF MOVIES ARE SIMILAR)
-    movie_reader = csv.reader(open('../ml-20m/movies.csv', newline=''), delimiter=',', quotechar='|')
+    movie_reader = csv.reader(open('../../ml-20m/movies.csv', newline=''), delimiter=',', quotechar='|')
     next(movie_reader)
     movies = []
     for i in range(0,200):                          # Checking only 200 movies right now because of speed
@@ -35,6 +35,11 @@ def init_weights():
             k = 0
             for k in range(0,1128):
                 diff += abs(float(movieList[i][k]) - float(movieList[j][k]))
+            avg_diff = diff / 1128
+            diff = 0
+            for k in range(0,1128):
+                if abs(float(movieList[i][k]) - float(movieList[j][k])) > avg_diff: # Only add diff if it's significant (greater than average diff from all tags)
+                    diff += abs(float(movieList[i][k]) - float(movieList[j][k]))
             diff = int(diff / 1128 * 10000)         # Normalize to int 0-10000
             weights.append([i, j, diff])            # Add the triple to the list. HERE ADD TO DB
     
@@ -48,7 +53,7 @@ def init_weights():
             if (curr[2] < low_diff):
                 low_diff = curr[2]
                 best_match = curr[1]
-        print("The best movie match for " + movies[j] + " is " + movies[best_match])
+        print("The best movie match for " + str(movies[j]) + " is " + movies[best_match])
         
 
 def init_weights2() :
@@ -94,5 +99,5 @@ def init_weights2() :
         else :
             print("The best movie match for " + movies[i] + " is " + movies[match] + " : " + str(match))
 
-init_weights2()
+init_weights()
 
