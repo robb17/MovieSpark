@@ -23,7 +23,6 @@ def init_weights():
         for j in range(0,1128):                     # There are 1128 tags. Get all of them for this movie and put its relevance in a list
             row = next(weight_reader)
             val = float(row[2])
-            val = val * val                         # Square the value to make more relevant tags weighted more
             movieList[i].append(val)
     
     weights = []                                    # A list that will contain triples (movie1, movie2, weight). In future will add to DB
@@ -34,8 +33,9 @@ def init_weights():
             if (i == j): continue                   # Don't get the same movie on itself
             diff = 0
             k = 0
-            for k in range(0,1028):
+            for k in range(0,1128):
                 diff += abs(float(movieList[i][k]) - float(movieList[j][k]))
+            diff = int(diff / 1128 * 10000)         # Normalize to int 0-10000
             weights.append([i, j, diff])            # Add the triple to the list. HERE ADD TO DB
     
     
@@ -85,22 +85,14 @@ def init_weights2() :
             if (i == j) :
                 continue
             tag_compare = set(tagList[i] + tagList[j])              # Combine the top 50 tags lists and remove dups
-            weight = 100 - len(tag_compare)                          # Length below 100 is number of shared tags
-            if (weight == 100):                                      # If there is a perfect match
-                print("SHORT: The best movie match for " + movies[i] + " is " + movies[j] + " : " + str(weight))
-                match = -2
-                break
-            elif (weight > best_match):
-                best_match = weight
+            weight = 100 - len(tag_compare)                         # Length below 100 is number of shared tags
+            if (weight > best_match):
+                best_match = weight                                 # weight is what would go in the DB here
                 match = j
         if (match == -1) :
             print("Failed to find match")
-        elif (match == -2) :
-            continue
-        # At this point, weight is the weight between the two movie and we store (movie1, movie2, weight) in DB
         else :
             print("The best movie match for " + movies[i] + " is " + movies[match] + " : " + str(match))
-        
 
 init_weights2()
 
