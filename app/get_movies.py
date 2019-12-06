@@ -9,18 +9,19 @@ def combine_attributes(movies):
     movie_set = {}
     for row in movie_reader:    # movie id, movie title, movie year
         title, year = parse_title(row[1])
-        movie_set[int(row[0])] = [title, year]
+        movie_set[int(row[0])] = [title, year, row[2]]
     for rated_movie in movies:
         if movie_set.get(rated_movie[0]):
-            movie_triples.append([rated_movie[0], movie_set[rated_movie[0]][0], movie_set[rated_movie[0]][1], rated_movie[1]])
+            new_attributes = movie_set[rated_movie[0]]
+            genres = new_attributes[2].split("|")
+            movie_triples.append([rated_movie[0], new_attributes[0], new_attributes[1], [genres[x] for x in range(0, len(genres))], rated_movie[1]])
     return movie_triples
 
-# Takes a list of ratings and gets the highest rated 13779
-# Returns a list of pairs (movie_id, rating)
+# Takes a list of id, rating, and weighted rating
+# Sorts by weighted rating and trims to top 10000
 def top_movies(movies):
-    movies_with_id = [[x, movies[x]] for x in range(1, len(movies))]
-    movies_with_id.sort(key=lambda x: x[1], reverse=True)
-    return movies_with_id[:10000]
+    movies.sort(key=lambda x: x[2], reverse=True)
+    return movies[:10000]
 
 def parse_title(unparsed_title):
     title = None
@@ -49,7 +50,8 @@ def n_movies(reader):
     return max_id + 1
 
 # Gets all rating from the ratings.csv file and gets average 0-5 rating for each movie
-# Returns a list of these ratings
+# Returns a list of sublists containing id, rating, and weighted rating
+# Weighted rating needed so that obscure movies with few reviews aren't heavily selected for
 def get_ratings():
     with open('../../ml-20m/ratings.csv', newline = '') as f:
         movie_reader = csv.reader(f, delimiter=',', quotechar = '"')
@@ -57,6 +59,7 @@ def get_ratings():
         f.seek(0)
         ratings = [0] * n_m
         rating_count = [0] * n_m
+        weighted_rating = [0] * n_m
         count = 0                                # and number of ratings for that movie
         for row in movie_reader:
             if (row[0] == "userId"):             # Ignore header
@@ -70,9 +73,12 @@ def get_ratings():
         for i in range(0, len(ratings)):                # Get ratings 0-5
             if (rating_count[i] != 0) :
                 ratings[i] = ratings[i] / rating_count[i]
-        return ratings
+        for i in range(0, len(ratings)):
+            weighted_rating[i] = ratings[i] if rating_count[i] > 10 else ratings[i] * ((10 - (rating_count[i] / 2)) / 10)
+        movies = [[x, ratings[x], weighted_rating[x]] for x in range(1, len(ratings))]
+        return movies
 
-# Returns a list of the top 13799 rated movies as (movie_id, movie_name, genre, year, rating)
+# Returns a list of the top 10000 rated movies as (movie_id, movie_name, (genre1, genre2, ...), year, rating)
 def get_movies():
     all_rated_movies = get_ratings()
     top_rated_movies = top_movies(all_rated_movies)
@@ -81,7 +87,7 @@ def get_movies():
     
 top_movies = get_movies()
 print(len(top_movies))
-for i in range(9000, 9100):
+for i in range(9000, 10000):
     print(top_movies[i])
 #ids = []
 #for entry in top_13799_movies :
