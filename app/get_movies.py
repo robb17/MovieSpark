@@ -21,7 +21,7 @@ def get_triples(movies):
 def top_movies(movies):
     rated_movies = []
     for i in range(0, 131263):
-        if (movies[i] > 3.2):                   # Set to 3.2 because it splits at almost 13000
+        if (movies[i] >= 3.25):                   # Set to 3.25 because it splits at almost 13000
             rated_movies.append([i, movies[i]])
     return rated_movies
 
