@@ -1,6 +1,8 @@
 import csv
 #from weights import init_weights
 
+MAX_MOVIES = 12000
+
 # Takes a list of pairs (movie_id, rating) and returns a list of triples with the movie name
 def combine_attributes(movies):
     movie_reader = csv.reader(open('../../ml-20m/movies.csv', newline = ''), delimiter=',', quotechar = '"')
@@ -21,7 +23,7 @@ def combine_attributes(movies):
 # Sorts by weighted rating and trims to top 10000
 def top_movies(movies):
     movies.sort(key=lambda x: x[2], reverse=True)
-    return movies[:10000]
+    return movies[:MAX_MOVIES]
 
 def parse_title(unparsed_title):
     title = None
@@ -74,7 +76,7 @@ def get_ratings():
             if (rating_count[i] != 0) :
                 ratings[i] = ratings[i] / rating_count[i]
         for i in range(0, len(ratings)):
-            weighted_rating[i] = ratings[i] if rating_count[i] > 10 else ratings[i] * ((10 - (rating_count[i] / 2)) / 10)
+            weighted_rating[i] = ratings[i] if rating_count[i] > 40 else ratings[i] * (((rating_count[i] / 2) + 20) / 40)
         movies = [[x, ratings[x], weighted_rating[x]] for x in range(1, len(ratings))]
         return movies
 
@@ -87,7 +89,7 @@ def get_movies():
     
 top_movies = get_movies()
 print(len(top_movies))
-for i in range(9000, 10000):
+for i in range(MAX_MOVIES - 1000, MAX_MOVIES):
     print(top_movies[i])
 #ids = []
 #for entry in top_13799_movies :
