@@ -1,11 +1,13 @@
 import csv
+from pathlib import Path
 #from weights import init_weights
 
 MAX_MOVIES = 12000
+BIAS_THRESHOLD = 50
 
 # Takes a list of pairs (movie_id, rating) and returns a list of triples with the movie name
 def combine_attributes(movies):
-    movie_reader = csv.reader(open('../../ml-20m/movies.csv', newline = ''), delimiter=',', quotechar = '"')
+    movie_reader = csv.reader(open('../ml-20m/movies.csv', newline = ''), delimiter=',', quotechar = '"')
     next(movie_reader)
     movie_triples = []
     movie_set = {}
@@ -55,7 +57,7 @@ def n_movies(reader):
 # Returns a list of sublists containing id, rating, and weighted rating
 # Weighted rating needed so that obscure movies with few reviews aren't heavily selected for
 def get_ratings():
-    with open('../../ml-20m/ratings.csv', newline = '') as f:
+    with open('../ml-20m/ratings.csv', newline = '') as f:
         movie_reader = csv.reader(f, delimiter=',', quotechar = '"')
         n_m = n_movies(movie_reader)
         f.seek(0)
@@ -76,21 +78,22 @@ def get_ratings():
             if (rating_count[i] != 0) :
                 ratings[i] = ratings[i] / rating_count[i]
         for i in range(0, len(ratings)):
-            weighted_rating[i] = ratings[i] if rating_count[i] > 40 else ratings[i] * (((rating_count[i] / 2) + 20) / 40)
+            weighted_rating[i] = ratings[i] if rating_count[i] > BIAS_THRESHOLD else ratings[i] * (((rating_count[i] / 2) + (BIAS_THRESHOLD / 2)) / BIAS_THRESHOLD)
         movies = [[x, ratings[x], weighted_rating[x]] for x in range(1, len(ratings))]
         return movies
 
-# Returns a list of the top 10000 rated movies as (movie_id, movie_name, (genre1, genre2, ...), year, rating)
+# Returns a list of the top 10000 rated movies as (movie_id, movie_name, year, (genre1, genre2, ...), rating)
 def get_movies():
     all_rated_movies = get_ratings()
     top_rated_movies = top_movies(all_rated_movies)
     top_movies_with_names = combine_attributes(top_rated_movies)
     return top_movies_with_names
     
-top_movies = get_movies()
-print(len(top_movies))
-for i in range(MAX_MOVIES - 1000, MAX_MOVIES):
-    print(top_movies[i])
+if __name__ == '__main__':
+    top_movies = get_movies()
+    print(len(top_movies))
+    for i in range(MAX_MOVIES - 1000, MAX_MOVIES):
+        print(top_movies[i])
 #ids = []
 #for entry in top_13799_movies :
 #    ids.append(entry[0])
