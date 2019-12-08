@@ -1,5 +1,4 @@
 import csv
-from pathlib import Path
 #from weights import init_weights
 
 MAX_MOVIES = 12000

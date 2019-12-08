@@ -18,6 +18,22 @@
 </script>
 
 <section class="hero is-felt is-bold is-large is-fullheight-with-navbar" style="margin-top: 0px;" id="hero">
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.js"></script>
+        {% for message in messages %}
+            {% if "uccessful" in message or "Welcome" in message or "Thanks for" in message %}
+              <div class="notification is-success" id="success">
+                {{ message }}
+            </div>
+            {% else %}
+            <div class="notification is-danger">
+                {{ message }}
+            </div>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+    {% endwith %}
 	<div class="container" id="parent" style="display: flex; align-items: center;">
 		<div class="container" id="start">
 			<h1 class="title">
