@@ -55,32 +55,35 @@ def init_db():
 		db.session.commit()
 		print("successfully added tags")
 
-	if tagweights_in_db < 100000:
+	if tagweights_in_db == 0:
 		print("adding tag weights")
 		print("collecting tag relevancy data for movies used in database")
 		movie_dict = get_tags_and_relevancy(movies)
 		print("done collecting tag relevancy data")
-		tagweight_id_counter = 1
 		tag_list = []
 		n_tags = len(get_scored_tags())
 		print("caching tags")
 		for x in range(1, n_tags + 1):				# get a pointer to each tag so we don't have to constantly re-look them up
 			tag_list.append(Tag.query.filter_by(tag_id=x).first())
 		print("adding tagweights to database")
+		tagweight_list = []
+		for x in range(0, 10001):	# tag weights are quantized: only need 10001 of them!
+			new_tagweight = TagWeight(tagweight_id=x, weight=x)
+			db.session.add(new_tagweight)
+			tagweight_list.append(new_tagweight)
+		print("connecting tagweights to movies and tags")
+		movie_count = 1
 		for movie_id in movie_dict.keys():
 			count = 1
 			movie = Movie.query.filter_by(movie_id=movie_id).first()
 			for tag_relevancy in movie_dict[movie_id]:
-				if tagweight_id_counter < 100:
-					print(tag_relevancy)
-				new_tagweight = TagWeight(tagweight_id=tagweight_id_counter, weight=tag_relevancy)
-				db.session.add(new_tagweight)
 				tag = tag_list[count - 1]
-				new_tagweight.movie.append(movie)
-				new_tagweight.tag.append(tag)
+				tagweight = tagweight_list[tag_relevancy]
+				tagweight.movie.append(movie)
+				tagweight.tag.append(tag)
 				count += 1
-				tagweight_id_counter += 1
-				if tagweight_id_counter % 10000 == 0:
-					print("adding tagweight = " + str(tagweight_id_counter))
+			movie_count += 1
+			if movie_count % 200 == 0:
+				print("Processing tags for movie " + str(movie_count) + "...")
 		print("successfully added tag weights")
 		db.session.commit()

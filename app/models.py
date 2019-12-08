@@ -12,7 +12,7 @@ movie_genre_table = db.Table('movie_genre_table', db.Model.metadata,
 
 #relevance_table = db.Table('relevance_table', db.Model.metadata,
 #	db.Column('movie_key', db.Integer, ForeignKey('movie.movie_id')),
-#	db.Column('offset', db.Integer, ForeignKey('relevance.relevance_id')),
+#	db.Column('offset', db.Integer),
 #	db.Column('movie_referenced', db.Integer, ForeignKey('movie.movie_id')))
 
 tag_table = db.Table('tag_table', db.Model.metadata,
@@ -26,7 +26,6 @@ class Relevance(db.Model):
 	movie_referenced = db.Column(db.Integer, db.ForeignKey('movie.movie_id'), primary_key=True)
 	offset = db.Column(db.Integer)
 
-
 class Movie(db.Model):
 	__tablename__ = 'movie'
 	movie_id = db.Column(db.Integer, primary_key=True)
@@ -39,7 +38,7 @@ class Movie(db.Model):
 
 	# One-to-many relationship here is many-to-many as a result of its self-referential nature
 	relevance_key = relationship("Relevance", backref='key', primaryjoin=movie_id==Relevance.movie_key)
-	relevance_referenced = relationship("Relevance", backref='referenced', primaryjoin=movie_id==Relevance.movie_key)
+	relevance_referenced = relationship("Relevance", backref='referenced', primaryjoin=movie_id==Relevance.movie_referenced)
 
 class TagWeight(db.Model):
 	__tablename__ = "tagweight"
