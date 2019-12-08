@@ -34,8 +34,6 @@ def get_tags_and_relevancy(movies):
 	valid_movies_dictionary = {}
 	for movie in movies:
 		valid_movies_dictionary[movie[0]] = True
-
-	tag_dict = get_scored_tags()
 	relevancy_reader = None
 	try:
 		relevancy_reader = csv.reader(open('../../../ml-20m/genome-scores.csv', newline = ''), delimiter=',', quotechar = '"')
@@ -43,12 +41,14 @@ def get_tags_and_relevancy(movies):
 		relevancy_reader = csv.reader(open('../ml-20m/genome-scores.csv', newline = ''), delimiter=',', quotechar = '"')
 	next(relevancy_reader)
 	movie_dict = {}
+	count = 0
 	for row in relevancy_reader:
 		movie_id = int(row[0])
 		if valid_movies_dictionary.get(movie_id):
 			if movie_dict.get(movie_id):
 				movie_dict[movie_id].append(int(float(row[2]) * 10000))
 			else:
+				count += 1
 				movie_dict[movie_id] = [int(float(row[2]) * 10000)]
 	return movie_dict
 

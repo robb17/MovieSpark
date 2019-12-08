@@ -26,9 +26,17 @@ def init_db():
 	genres_in_db = db.session.query(Genre).count()
 	tags_in_db = db.session.query(Tag).count()
 	tagweights_in_db = db.session.query(TagWeight).count()
-	movies = get_movies()
+	print("finding a good basis set...")
+	raw_movies = get_movies()
+	print("narrowing basis set down to movies with tags...")
+	movie_tag_dictionary = get_tags_and_relevancy(raw_movies)
+	movies = []
+	for movie in raw_movies:
+		if movie_tag_dictionary.get(movie[0]):
+			movies.append(movie)
 
 	if movies_in_db == 0 or genres_in_db == 0:
+		print("populating genres table...")
 		genres = get_genres(movies)
 		if genres_in_db == 0:
 			for i in range(0, len(genres)):
@@ -36,7 +44,7 @@ def init_db():
 				new_genre = Genre(genre_id=i, name=genre)
 				db.session.add(new_genre)
 		db.session.commit()
-		print("successfully added genres")
+		print("populating movies table...")
 		if movies_in_db == 0:
 			for movie in movies:
 				new_movie = Movie(movie_id=movie[0], name=movie[1], rating=int(movie[4] * 10000), year_released=movie[2])
@@ -44,39 +52,35 @@ def init_db():
 				for genre in movie[3]:
 					stored_genre = Genre.query.filter_by(name=genre).first()
 					new_movie.genres.append(stored_genre)
-		print("successfully added movies")
+		print("there are " + str(len(movies)) + " in the database")
 		db.session.commit()
 
 	if tags_in_db == 0:
+		print("populating tags table...")
 		tag_dict = get_scored_tags()
 		for tag_id in tag_dict.keys():
 			new_tag = Tag(tag_id=tag_id, tag=tag_dict[tag_id])
 			db.session.add(new_tag)
 		db.session.commit()
-		print("successfully added tags")
 
 	if tagweights_in_db == 0:
-		print("adding tag weights")
-		print("collecting tag relevancy data for movies used in database")
-		movie_dict = get_tags_and_relevancy(movies)
-		print("done collecting tag relevancy data")
 		tag_list = []
 		n_tags = len(get_scored_tags())
-		print("caching tags")
+		print("caching tags...")
 		for x in range(1, n_tags + 1):				# get a pointer to each tag so we don't have to constantly re-look them up
 			tag_list.append(Tag.query.filter_by(tag_id=x).first())
-		print("adding tagweights to database")
+		print("populating tagweights table")
 		tagweight_list = []
 		for x in range(0, 10001):	# tag weights are quantized: only need 10001 of them!
 			new_tagweight = TagWeight(tagweight_id=x, weight=x)
 			db.session.add(new_tagweight)
 			tagweight_list.append(new_tagweight)
-		print("connecting tagweights to movies and tags")
+		print("connecting tagweights to movies and tags...")
 		movie_count = 1
-		for movie_id in movie_dict.keys():
+		for movie_id in movie_tag_dictionary.keys():
 			count = 1
 			movie = Movie.query.filter_by(movie_id=movie_id).first()
-			for tag_relevancy in movie_dict[movie_id]:
+			for tag_relevancy in movie_tag_dictionary[movie_id]:
 				tag = tag_list[count - 1]
 				tagweight = tagweight_list[tag_relevancy]
 				tagweight.movie.append(movie)
@@ -85,5 +89,5 @@ def init_db():
 			movie_count += 1
 			if movie_count % 200 == 0:
 				print("Processing tags for movie " + str(movie_count) + "...")
-		print("successfully added tag weights")
+				db.session.commit()
 		db.session.commit()

@@ -64,12 +64,13 @@ def get_ratings():
         rating_count = [0] * n_m
         weighted_rating = [0] * n_m
         count = 0                                # and number of ratings for that movie
+        print("calculating ratings...")
         for row in movie_reader:
             if (row[0] == "userId"):             # Ignore header
                 continue
             count += 1
-            if ((count % 1000000) == 0) :        # To see progress
-                print("ROW " + str(int(count / 1000000)) + " million")
+            if ((count % 5000000) == 0) :        # To see progress
+                print("searching row " + str(int(count / 1000000)) + " million...")
             movie_id = int(row[1])
             rating_count[movie_id] += 1
             ratings[movie_id] += float(row[2])
