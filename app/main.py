@@ -12,18 +12,24 @@ from .models import Movie, Genre, Tag, TagWeight
 
 main = Blueprint('main', __name__)
 
-@socketio.on('title request')
-def search(user_input):
+@socketio.on('autofill request')
+def search(data):
+	user_input = data['query_text']
+	query_type = data['query_type']
 	return_str = ""
 	user_input = user_input.lower()
 	if ((len(user_input) > 3) and (user_input[0:4] == 'the ')):
 		user_input = user_input[4:]
 	input = "%" + user_input + "%"
-	movie = db.session.query(Movie).filter(Movie.name.ilike(input)).first()
-	if not movie:
+	results = None
+	if query_type == 'Movie':
+		results = db.session.query(Movie).filter(Movie.name.ilike(input)).first()
+	else:
+		results = db.session.query(Tag).filter(Tag.tag.ilike(input)).first()
+	if not results:
 		return_str = "No results found"
 	else:
-		return_str = 'Are you thinking of "<span style="cursor: pointer; text-decoration: underline; color: blue;" id="search_suggestion">' + str(movie.name) + '</span>"?'
+		return_str = 'Are you thinking of "<span style="cursor: pointer; text-decoration: underline; color: blue;" id="search_suggestion">' + str(results.name if query_type == "Movie" else results.tag) + '</span>"?'
 	socketio.emit('title result', return_str, room=request.sid)
 
 @main.route('/')

@@ -20,17 +20,16 @@
 
     function query_on_type(evt, obj) {
         if (evt.key != 'Enter') {
-	        var existing_text = obj.value;
-	    	var new_text = existing_text.slice(0, obj.selectionStart) + evt.key + existing_text.slice(obj.selectionEnd, existing_text.length);
-	        socket.emit('title request', new_text);
-       	} else {
-       		socket.emit('query request', {'query_text': obj.value, 'query_type': $("#query_type").val()});
-       	}
+		    var existing_text = obj.value;
+			var new_text = existing_text.slice(0, obj.selectionStart) + evt.key + existing_text.slice(obj.selectionEnd, existing_text.length);
+			socket.emit('autofill request', {'query_type': $("#query_type").val(), 'query_text': new_text});
+   		} else {
+   			socket.emit('query request', {'query_text': obj.value, 'query_type': $("#query_type").val()});
+   		}
     }
 
     function test_for_backspace(evt, obj) {
 		var key = (evt.which) ? evt.which : event.keyCode;
-		console.log(key)
         if (key == 8 || key == 46) {
         	$("#results").html('');
         }
