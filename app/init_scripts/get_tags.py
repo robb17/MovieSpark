@@ -46,10 +46,10 @@ def get_tags_and_relevancy(movies):
 		movie_id = int(row[0])
 		if valid_movies_dictionary.get(movie_id):
 			if movie_dict.get(movie_id):
-				movie_dict[movie_id].append(int(float(row[2]) * 100000))
+				movie_dict[movie_id].append(int(float(row[2]) * 10000))
 			else:
 				count += 1
-				movie_dict[movie_id] = [int(float(row[2]) * 100000)]
+				movie_dict[movie_id] = [int(float(row[2]) * 10000)]
 	return movie_dict
 
 

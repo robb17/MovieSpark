@@ -84,24 +84,21 @@ def init_db():
 		print("caching tags...")
 		for x in range(1, n_tags + 1):				# get a pointer to each tag so we don't have to constantly re-look them up
 			tag_list.append(Tag.query.filter_by(tag_id=x).first())
-		print("populating tagweights table...")
-		tagweight_list = []
-		for x in range(0, 100001):	# tag weights are quantized: only need 100001 of them!
-			new_tagweight = TagWeight(tagweight_id=x, weight=x)
-			db.session.add(new_tagweight)
-			tagweight_list.append(new_tagweight)
 		print("connecting tagweights to movies and tags...")
 		movie_count = 1
 		start = time.time()
+		tagweight_id = 1
 		for movie_id in movie_tag_dictionary.keys():
 			count = 1
 			movie = Movie.query.filter_by(movie_id=movie_id).first()
 			for tag_relevancy in movie_tag_dictionary[movie_id]:
+				tagweight = TagWeight(tagweight_id=tagweight_id, weight=tag_relevancy)
+				db.session.add(tagweight)
 				tag = tag_list[count - 1]
-				tagweight = tagweight_list[tag_relevancy]
 				tagweight.movie.append(movie)
 				tagweight.tag.append(tag)
 				count += 1
+				tagweight_id += 1
 			movie_count += 1
 			if movie_count % 50 == 0:
 				print("processing tags for movie " + str(movie_count) + "...")
