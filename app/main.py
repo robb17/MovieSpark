@@ -4,12 +4,27 @@ from . import db
 import os, sys
 from . import socketio
 from app import app
+import time
 
 from .init_scripts import init_weights, get_movies, get_genres, get_tags_and_relevancy, get_scored_tags
 
 from .models import Movie, Genre, Tag, TagWeight
 
 main = Blueprint('main', __name__)
+
+@socketio.on('search request')
+def search(user_input):
+	return_str = ""
+    user_input = user_input.lower()
+    if ((len(user_input) > 3) and (user_input[0:4] == 'the ')):
+        user_input = user_input[4:]
+    input = "%" + user_input + "%"
+    movie = db.session.query(Movie).filter(Movie.name.ilike(input)).first()
+    if not movie:
+        return_str = "No results found"
+    else:
+    	return_str = "Did you mean " + str(movie.name) + "?"
+    socketio.emit('search result', return_str, room=request.sid)
 
 @main.route('/')
 def index():
@@ -52,7 +67,7 @@ def init_db():
 				for genre in movie[3]:
 					stored_genre = Genre.query.filter_by(name=genre).first()
 					new_movie.genres.append(stored_genre)
-		print("there are " + str(len(movies)) + " in the database")
+		print("there are " + str(len(movies)) + " movies in the database")
 		db.session.commit()
 
 	if tags_in_db == 0:
@@ -69,7 +84,7 @@ def init_db():
 		print("caching tags...")
 		for x in range(1, n_tags + 1):				# get a pointer to each tag so we don't have to constantly re-look them up
 			tag_list.append(Tag.query.filter_by(tag_id=x).first())
-		print("populating tagweights table")
+		print("populating tagweights table...")
 		tagweight_list = []
 		for x in range(0, 10001):	# tag weights are quantized: only need 10001 of them!
 			new_tagweight = TagWeight(tagweight_id=x, weight=x)
@@ -77,6 +92,7 @@ def init_db():
 			tagweight_list.append(new_tagweight)
 		print("connecting tagweights to movies and tags...")
 		movie_count = 1
+		start = time.time()
 		for movie_id in movie_tag_dictionary.keys():
 			count = 1
 			movie = Movie.query.filter_by(movie_id=movie_id).first()
@@ -87,7 +103,8 @@ def init_db():
 				tagweight.tag.append(tag)
 				count += 1
 			movie_count += 1
-			if movie_count % 200 == 0:
+			if movie_count % 50 == 0:
 				print("Processing tags for movie " + str(movie_count) + "...")
-				db.session.commit()
+				print(time.time() - start)
+				start = time.time()
 		db.session.commit()
