@@ -15,16 +15,16 @@ main = Blueprint('main', __name__)
 @socketio.on('search request')
 def search(user_input):
 	return_str = ""
-    user_input = user_input.lower()
-    if ((len(user_input) > 3) and (user_input[0:4] == 'the ')):
-        user_input = user_input[4:]
-    input = "%" + user_input + "%"
-    movie = db.session.query(Movie).filter(Movie.name.ilike(input)).first()
-    if not movie:
-        return_str = "No results found"
-    else:
-    	return_str = "Did you mean " + str(movie.name) + "?"
-    socketio.emit('search result', return_str, room=request.sid)
+	user_input = user_input.lower()
+	if ((len(user_input) > 3) and (user_input[0:4] == 'the ')):
+		user_input = user_input[4:]
+	input = "%" + user_input + "%"
+	movie = db.session.query(Movie).filter(Movie.name.ilike(input)).first()
+	if not movie:
+		return_str = "No results found"
+	else:
+		return_str = "Did you mean " + str(movie.name) + "?"
+	socketio.emit('search result', return_str, room=request.sid)
 
 @main.route('/')
 def index():
@@ -86,7 +86,7 @@ def init_db():
 			tag_list.append(Tag.query.filter_by(tag_id=x).first())
 		print("populating tagweights table...")
 		tagweight_list = []
-		for x in range(0, 10001):	# tag weights are quantized: only need 10001 of them!
+		for x in range(0, 100001):	# tag weights are quantized: only need 100001 of them!
 			new_tagweight = TagWeight(tagweight_id=x, weight=x)
 			db.session.add(new_tagweight)
 			tagweight_list.append(new_tagweight)
@@ -104,7 +104,7 @@ def init_db():
 				count += 1
 			movie_count += 1
 			if movie_count % 50 == 0:
-				print("Processing tags for movie " + str(movie_count) + "...")
+				print("processing tags for movie " + str(movie_count) + "...")
 				print(time.time() - start)
 				start = time.time()
 		db.session.commit()
