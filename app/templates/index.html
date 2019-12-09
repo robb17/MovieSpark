@@ -9,22 +9,23 @@
 
     $(document).ready(function() {
     	var negative_width = -$("#hero").width();
-		$("#get_started").click(async function() {
+		$("#get_started").click(function() {
 			$("#start").animate({'margin-left': negative_width, 'margin-right': -negative_width}, 1000, function() {
 				$("#start").remove();
 				var width = $("#hero").width();
-				$("#parent").append('<div class="box is-mobile is-centered is-fullwidth" id="select" style="margin-left: ' + width + 'px; margin-right: ' + -width + 'px; overflow: hidden;"><div class="column is-centered"><h1 class="title has-text-black">What movie would you like us to use as a reference point?</h1><input class="input is-large" type="text" name="movie_name" placeholder="Movie title" onkeypress="return query_on_type(event, this)" onkeydown="test_for_backspace(event, this)"><div id="results" style=""></div><button class="button is-block is-info is-large is-fullwidth">Go!</button></div></div>')
-				$("#select").animate({'margin-left': 0, 'margin-right': 0}, 1000)
+				$("#select").animate({'left': '0vw', 'right': '0vw', 'top': '40%'}, 1000)
 			});
 		});
 	});
 
     function query_on_type(evt, obj) {
-        var existing_text = obj.value;
-        var new_text = existing_text.slice(0, obj.selectionStart) + evt.key + existing_text.slice(obj.selectionEnd, existing_text.length);
-        var new_input = (evt.which) ? evt.which : event.keyCode
-        console.log(new_input);
-        socket.emit('title request', new_text);
+        if (evt.key != 'Enter') {
+	        var existing_text = obj.value;
+	    	var new_text = existing_text.slice(0, obj.selectionStart) + evt.key + existing_text.slice(obj.selectionEnd, existing_text.length);
+	        socket.emit('title request', new_text);
+       	} else {
+       		socket.emit('query request', {'query_text': obj.value, 'query_type': $("#query_type").val()});
+       	}
     }
 
     function test_for_backspace(evt, obj) {
@@ -66,6 +67,30 @@
 			<h2 class="subtitle">
 			  	Find movies you'll love with a recommendation system that improves as you use it.<br><b><span style="cursor:pointer" id="get_started">Get started</span></b>
 			</h2>
+		</div>
+	</div>
+	<div class="box is-mobile is-centered is-fullwidth" id="select" style="left: 100vw; right: -100vw; top: 40%; overflow: hidden; position: absolute;">
+		<div class="column is-centered">
+			<h1 class="title has-text-black has-text-centered">What would you like us to use as a reference point?</h1>
+			<div class="field has-addons is-fullwidth">
+				<div class="control is-expanded">
+					<input class="input is-large" type="text" id="query_text" placeholder="Movie title" onkeypress="return query_on_type(event, this)" onkeydown="test_for_backspace(event, this)"></input>
+				</div>
+                <div class="control">
+                    <div class="field is-pulled-right">
+                        <div class="control">
+                            <div class="select is-large">
+                                <select id="query_type">
+                                    <option>Movie</option>
+                                    <option>Topic</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+			<div class="has-text-centered" id="results"></div>
+			<button class="button is-block is-info is-large is-fullwidth">Go!</button>
 		</div>
 	</div>
 </section>

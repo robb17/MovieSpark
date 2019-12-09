@@ -23,7 +23,7 @@ def search(user_input):
 	if not movie:
 		return_str = "No results found"
 	else:
-		return_str = 'Are you thinking of "' + str(movie.name) + '"?'
+		return_str = 'Are you thinking of "<span style="cursor: pointer; text-decoration: underline; color: blue;" id="search_suggestion">' + str(movie.name) + '</span>"?'
 	socketio.emit('title result', return_str, room=request.sid)
 
 @main.route('/')
