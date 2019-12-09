@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
+<script type="text/javascript">
+    var protocol = window.location.protocol;
+    var socket = io({transports: ['websocket']});
+    socket.connect(protocol + '//' + document.domain + ':' + location.port);
+
+    $(document).ready(function() {
+    	var negative_width = -$("#hero").width();
+		$("#get_started").click(async function() {
+			$("#start").animate({'margin-left': negative_width, 'margin-right': -negative_width}, 1000, function() {
+				$("#start").remove();
+				var width = $("#hero").width();
+				$("#parent").append('<div class="box is-mobile is-centered is-fullwidth" id="select" style="margin-left: ' + width + 'px; margin-right: ' + -width + 'px; overflow: hidden;"><div class="column is-centered"><h1 class="title has-text-black">What movie would you like us to use as a reference point?</h1><input class="input is-large" type="text" name="movie_name" placeholder="Movie title" onkeypress="return query_on_type(event, this)" onkeydown="test_for_backspace(event, this)"><div id="results" style=""></div><button class="button is-block is-info is-large is-fullwidth">Go!</button></div></div>')
+				$("#select").animate({'margin-left': 0, 'margin-right': 0}, 1000)
+			});
+		});
+	});
+
+    function query_on_type(evt, obj) {
+        var existing_text = obj.value;
+        var new_text = existing_text.slice(0, obj.selectionStart) + evt.key + existing_text.slice(obj.selectionEnd, existing_text.length);
+        var new_input = (evt.which) ? evt.which : event.keyCode
+        console.log(new_input);
+        socket.emit('title request', new_text);
+    }
+
+    function test_for_backspace(evt, obj) {
+		var key = (evt.which) ? evt.which : event.keyCode;
+		console.log(key)
+        if (key == 8 || key == 46) {
+        	$("#results").html('');
+        }
+    }
+
+    socket.on('title result', function(data) {
+		$("#results").html(data);
+    });
+
+</script>
+
+<section class="hero is-felt is-bold is-large is-fullheight-with-navbar" style="margin-top: 0px;" id="hero">
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.js"></script>
+        {% for message in messages %}
+            {% if "uccessful" in message or "Welcome" in message %}
+              <div class="notification is-success" id="success">
+                {{ message }}
+            </div>
+            {% else %}
+            <div class="notification is-danger">
+                {{ message }}
+            </div>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+    {% endwith %}
+	<div class="container" id="parent" style="display: flex; align-items: center;">
+		<div class="container" id="start">
+			<h1 class="title">
+			  Home
+			</h1>
+			<h2 class="subtitle">
+			  	Find movies you'll love with a recommendation system that improves as you use it.<br><b><span style="cursor:pointer" id="get_started">Get started</span></b>
+			</h2>
+		</div>
+	</div>
+</section>
+
+{% endblock %}
