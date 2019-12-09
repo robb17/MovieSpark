@@ -29,7 +29,7 @@ def search(data):
 	if not results:
 		return_str = "No results found"
 	else:
-		return_str = 'Are you thinking of "<span style="cursor: pointer; text-decoration: underline; color: blue;" id="search_suggestion">' + str(results.name if query_type == "Movie" else results.tag) + '</span>"?'
+		return_str = 'Are you thinking of <span style="cursor: pointer; text-decoration: underline; color: blue;" id="search_suggestion">' + str(results.name if query_type == "Movie" else results.tag) + '</span>?'
 	socketio.emit('title result', return_str, room=request.sid)
 
 @main.route('/')

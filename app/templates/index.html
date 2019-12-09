@@ -12,11 +12,29 @@
 		$("#get_started").click(function() {
 			$("#start").animate({'margin-left': negative_width, 'margin-right': -negative_width}, 1000, function() {
 				$("#start").remove();
-				var width = $("#hero").width();
-				$("#select").animate({'left': '0vw', 'right': '0vw', 'top': '40%'}, 1000)
+				display_search_window();
+			});
+		});
+		$("#submit_query").click(function() {
+			socket.emit('query request', {'query_text': $("#query_text").val(), 'query_type': $("#query_type").val()});
+			display_query_results();
+		});
+		$("#back_to_search").click(function() {
+			$("#query_results").animate({'left': '100vw', 'right': '-100vw', 'top': '40%'}, 1000, function() {
+				display_search_window();
 			});
 		});
 	});
+
+	function display_query_results() {
+		$("#search_window").animate({'left': '-100vw', 'right': '100vw'}, 1000, function() {
+			$("#query_results").animate({'left': '0vw', 'right': '0vw', 'top': '40%'}, 1000);
+		});
+	}
+
+	function display_search_window() {
+		$("#search_window").animate({'left': '0vw', 'right': '0vw', 'top': '40%'}, 1000);
+	}
 
     function query_on_type(evt, obj) {
         if (evt.key != 'Enter') {
@@ -24,19 +42,24 @@
 			var new_text = existing_text.slice(0, obj.selectionStart) + evt.key + existing_text.slice(obj.selectionEnd, existing_text.length);
 			socket.emit('autofill request', {'query_type': $("#query_type").val(), 'query_text': new_text});
    		} else {
-   			socket.emit('query request', {'query_text': obj.value, 'query_type': $("#query_type").val()});
+   			$("#submit_query").click();
    		}
     }
 
     function test_for_backspace(evt, obj) {
 		var key = (evt.which) ? evt.which : event.keyCode;
         if (key == 8 || key == 46) {
-        	$("#results").html('');
+        	$("#search_results").html('');
         }
     }
 
     socket.on('title result', function(data) {
-		$("#results").html(data);
+		$("#search_results").html(data);
+		$("#search_suggestion").click(function() {
+			console.log($("#search_suggestion").text());
+			socket.emit('query request', {'query_text': $("#search_suggestion").text(), 'query_type': $("#query_type").val()});
+			display_query_results()
+		});
     });
 
 </script>
@@ -68,7 +91,7 @@
 			</h2>
 		</div>
 	</div>
-	<div class="box is-mobile is-centered is-fullwidth" id="select" style="left: 100vw; right: -100vw; top: 40%; overflow: hidden; position: absolute;">
+	<div class="box is-mobile is-centered is-fullwidth" id="search_window" style="left: 100vw; right: -100vw; top: 40%; overflow: hidden; position: absolute;">
 		<div class="column is-centered">
 			<h1 class="title has-text-black has-text-centered">What would you like us to use as a reference point?</h1>
 			<div class="field has-addons is-fullwidth">
@@ -88,8 +111,16 @@
                     </div>
                 </div>
             </div>
-			<div class="has-text-centered" id="results"></div>
-			<button class="button is-block is-info is-large is-fullwidth">Go!</button>
+			<div class="has-text-centered" id="search_results"></div>
+			<button class="button is-block is-info is-large is-fullwidth" id="submit_query">Go!</button>
+		</div>
+	</div>
+	<div class="box is-mobile is-centered is-fullwidth" id="query_results" style="left: 100vw; right: -100vw; top: 40%; overflow: hidden; position: absolute;">
+		<div class="column is-centered has-text-centered">
+			<h1 class="title has-text-black has-text-centered">Results</h1>
+			<span style="cursor: pointer; text-decoration: underline; color: blue;" id="back_to_search">
+				Back to search
+			</span>
 		</div>
 	</div>
 </section>
