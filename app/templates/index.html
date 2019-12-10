@@ -10,7 +10,7 @@
     $(document).ready(function() {
     	var negative_width = -$("#hero").width();
 		$("#get_started").click(function() {
-			$("#start").animate({'margin-left': negative_width, 'margin-right': -negative_width}, 1000, function() {
+			$("#start").animate({'margin-left': negative_width, 'margin-right': -negative_width}, 1500, function() {
 				$("#start").remove();
 				display_search_window();
 			});
@@ -20,20 +20,26 @@
 			display_query_results();
 		});
 		$("#back_to_search").click(function() {
-			$("#query_results").animate({'left': '100vw', 'right': '-100vw', 'top': '40%'}, 1000, function() {
+			$("#query_window").animate({'left': '100vw', 'right': '-100vw', 'top': '40%'}, 1500, function() {
 				display_search_window();
+		    	for (var i = 0; i < 3; i++) {
+    				$("#query_results" + (i + 1)).html('');
+    			}
 			});
 		});
 	});
 
 	function display_query_results() {
-		$("#search_window").animate({'left': '-100vw', 'right': '100vw'}, 1000, function() {
-			$("#query_results").animate({'left': '0vw', 'right': '0vw', 'top': '40%'}, 1000);
+		for (var i = 0; i < 3; i++) {
+			$("#query_results" + (i + 1)).html('Loading...');
+		}
+		$("#search_window").animate({'left': '-100vw', 'right': '100vw'}, 1500, function() {
+			$("#query_window").animate({'left': '0vw', 'right': '0vw', 'top': '40%'}, 1500);
 		});
 	}
 
 	function display_search_window() {
-		$("#search_window").animate({'left': '0vw', 'right': '0vw', 'top': '40%'}, 1000);
+		$("#search_window").animate({'left': '0vw', 'right': '0vw', 'top': '40%'}, 1500);
 	}
 
     function query_on_type(evt, obj) {
@@ -59,6 +65,12 @@
 			socket.emit('query request', {'query_text': $("#search_suggestion").text(), 'query_type': $("#query_type").val()});
 			display_query_results()
 		});
+    });
+
+    socket.on('query result', function(data) {
+    	for (var i = 0; i < data.length; i++) {
+    		$("#query_results" + (i + 1)).html(data[i]);
+    	}
     });
 
 </script>
@@ -114,9 +126,19 @@
 			<button class="button is-block is-info is-large is-fullwidth" id="submit_query">Go!</button>
 		</div>
 	</div>
-	<div class="box is-mobile is-centered is-fullwidth" id="query_results" style="left: 100vw; right: -100vw; top: 40%; overflow: hidden; position: absolute;">
+	<div class="box is-mobile is-centered is-fullwidth" id="query_window" style="left: 100vw; right: -100vw; top: 40%; overflow: hidden; position: absolute;">
 		<div class="column is-centered has-text-centered">
 			<h1 class="title has-text-black has-text-centered">Results</h1>
+			<div class="has-text-centered" id="query_results">
+				<div class="columns" style="padding-bottom: 10px;">
+					<div class="column" id="query_results1">
+					</div>
+					<div class="column" id="query_results2">
+					</div>
+					<div class="column" id="query_results3">
+					</div>
+				</div>
+			</div>
 			<span style="cursor: pointer; text-decoration: underline; color: blue;" id="back_to_search">
 				Back to search
 			</span>

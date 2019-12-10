@@ -5,6 +5,7 @@ import os, sys
 from . import socketio
 from app import app
 import time
+import random
 
 from sqlalchemy import create_engine
 from sqlalchemy.sql import text
@@ -29,7 +30,7 @@ def search(data):
 	input = "%" + user_input + "%"
 	return_str, results = test_for_empty_result(query_type, input)
 	if results:
-		return_str = 'Are you thinking of <span style="cursor: pointer; text-decoration: underline; color: blue;" id="search_suggestion">' + str(results.name if query_type == "Movie" else results.tag) + '</span>?'
+		return_str = 'Are you thinking of <span style="cursor: pointer; text-decoration: underline; color: blue;" id="search_suggestion">' + str(results.name) + '</span>?'
 	socketio.emit('title result', return_str, room=request.sid)
 
 def test_for_empty_result(query_type, final_input):
@@ -38,9 +39,9 @@ def test_for_empty_result(query_type, final_input):
 	if query_type == 'Movie':
 		results = db.session.query(Movie).filter(Movie.name.ilike(final_input)).first()
 	else:
-		results = db.session.query(Tag).filter(Tag.tag.ilike(final_input)).first()
+		results = db.session.query(Tag).filter(Tag.name.ilike(final_input)).first()
 	if not results:
-		return_str = "No results found"
+		return_str = ["No results found"]
 	return (return_str, results)
 
 @socketio.on('query request')
@@ -56,63 +57,28 @@ def find_suggestions(data):
 		suggestions = movie_to_suggestions(results)
 	else:
 		suggestions = tag_to_suggestions(results)
-	socketio.emit('suggestions result', suggestions, room=request.sid)
-
-#def movie_to_suggestions(search_movie):
-#	movies = Movie.query.all()
-#	search_list = [tagweight.weight for tagweight in search_movie.tagweight]
-#	best_match_val = None
-#	best_match = -1
-#	count = 1
-#	for movie in movies:
-#		if (movie.movie_id == search_movie.movie_id):
-#			continue
-#		diff = 0
-#		test_list = [tagweight.weight for tagweight in movie.tagweight]
-#		for i in range(0, 1128) :
-#			diff += abs(search_list[i] - test_list[i])
-#		avg_diff = diff / 1128
-#		diff = 0
-#		for i in range(0, 1128) :
-#			if (abs(search_list[i] - test_list[i]) > avg_diff) :
-#				diff += abs(search_list[i] - test_list[i])
-#		diff = int((diff / 1128) * 10000)
-#		relevance = db.session.query(Relevance).filter(Relevance.movie_key == search_movie.movie_id, Relevance.movie_referenced == movie.movie_id).first()
-#		if not relevance:
-#			relevance = db.session.query(Relevance).filter(Relevance.movie_key == movie.movie_id, Relevance.movie_referenced == search_movie.movie_id).first()
-#		if relevance:
-#			diff += relevance.offset
-#		if best_match_val == None:
-#			best_match_val = diff
-#			best_match = movie.movie_id
-#		if (diff < best_match_val):
-#			best_match_val = diff
-#			best_match = movie.movie_id
-#		count += 1
-#		if count % 5 == 0:
-#			print("at " + str(count))
-#	best_movie = db.session.query(Movie).filter(Movie.movie_id == best_match).first()
-#	return_str = "You should try " + best_movie[1]
+	socketio.emit('query result', suggestions, room=request.sid)
 
 def movie_to_suggestions(search_movie):
 	conn = engine.connect()
-	print("starting")
 	movies = Movie.query.all()
-	print("done querying")
 	search_list = [int(row[0]) for row in conn.execute('SELECT weight FROM movie, tagweight WHERE movie.movie_id = ' + str(search_movie.movie_id) + ' AND tagweight.movie_id = movie.movie_id')]
-	print(search_list)
-	best_match_val = None
-	best_match = -1
+	matches = [[-1, float("inf")], [-1, float("inf")], [-1, float("inf")]]
 	count = 1
-	for movie in movies:
+	movie_lst = random.sample(movies, 2000)
+	relevance_adjustments = RelevanceWeight.query.all()
+	adjustment_dict = {}
+	for adjustment in relevance_adjustments:
+		adjustment_dict[adjustment.movie_key] = [adjustment.movie_referenced, adjustment.offset]
+		adjustment_dict[adjustment.movie_referenced] = [adjustment.movie_key, adjustment.offset]
+	for movie in random.sample(movies, 2000):
 		start = time.time()
 		if (movie.movie_id == search_movie.movie_id):
 			continue
 		diff = 0
 
 		starting_list_build = time.time()
-		test_list = [int(row[0]) for row in conn.execute('SELECT weight FROM movie, tagweight WHERE movie.movie_id = ' + str(search_movie.movie_id) + ' AND tagweight.movie_id = movie.movie_id')]
-		print("raw building list at t = " + str(time.time() - starting_list_build))
+		test_list = [int(row[0]) for row in conn.execute('SELECT weight FROM movie, tagweight WHERE movie.movie_id = ' + str(movie.movie_id) + ' AND tagweight.movie_id = movie.movie_id')]
 
 		for i in range(0, 1128) :
 			diff += abs(search_list[i] - test_list[i])
@@ -122,23 +88,33 @@ def movie_to_suggestions(search_movie):
 			if (abs(search_list[i] - test_list[i]) > avg_diff) :
 				diff += abs(search_list[i] - test_list[i])
 		diff = int((diff / 1128) * 10000)
-		#relevance = db.session.query(RelevanceWeight).filter(RelevanceWeight.movie_key == search_movie.movie_id, RelevanceWeight.movie_referenced == movie.movie_id).first()
-		#if not relevance:
-		#	relevance = db.session.query(RelevanceWeight).filter(RelevanceWeight.movie_key == movie.movie_id, RelevanceWeight.movie_referenced == search_movie.movie_id).first()
-		#if relevance:
-		#	diff += relevance.offset
-		if best_match_val == None:
-			best_match_val = diff
-			best_match = movie.movie_id
-		if (diff < best_match_val):
-			best_match_val = diff
-			best_match = movie.movie_id
+		if adjustment_dict.get(movie.movie_id):
+			diff += adjustment_dict[movie.movie_id][1]
+		if (diff < matches[2][1]):
+			x = 1
+			for match in matches:
+				if diff < match[1]:
+					temp_movie = match[0]
+					temp_diff = match[1]
+					match[0] = movie
+					match[1] = diff
+					for match in matches[x:]:
+						second_temp_movie = match[0]
+						second_temp_diff = match[1]
+						match[0] = temp_movie
+						match[1] = temp_diff
+						temp_movie = second_temp_movie
+						temp_diff = second_temp_diff
+					break
+				x += 1
+			print(matches)
 		count += 1
 		if count % 5 == 0:
 			print("at " + str(count))
-		print(time.time() - start)
-	best_movie = db.session.query(Movie).filter(Movie.movie_id == best_match).first()
-	return best_movie.name
+	for pair in matches:
+		print(pair[0].name)
+	conn.close()
+	return [pair[0].name for pair in matches]
 
 def tag_to_suggestions(tag):
 	pass
