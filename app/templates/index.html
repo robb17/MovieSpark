@@ -68,6 +68,11 @@
     });
 
     socket.on('query result', function(data) {
+    	if (data[0] == "No results found") {
+    		data[0] = "";
+    		data.push("No results found");
+    		data.push("");
+    	}
     	for (var i = 0; i < data.length; i++) {
     		$("#query_results" + (i + 1)).html(data[i]);
     	}

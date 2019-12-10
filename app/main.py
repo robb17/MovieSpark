@@ -72,7 +72,6 @@ def movie_to_suggestions(search_movie):
 		adjustment_dict[adjustment.movie_key] = [adjustment.movie_referenced, adjustment.offset]
 		adjustment_dict[adjustment.movie_referenced] = [adjustment.movie_key, adjustment.offset]
 	for movie in random.sample(movies, 2000):
-		start = time.time()
 		if (movie.movie_id == search_movie.movie_id):
 			continue
 		diff = 0
@@ -107,12 +106,6 @@ def movie_to_suggestions(search_movie):
 						temp_diff = second_temp_diff
 					break
 				x += 1
-			print(matches)
-		count += 1
-		if count % 5 == 0:
-			print("at " + str(count))
-	for pair in matches:
-		print(pair[0].name)
 	conn.close()
 	return [pair[0].name for pair in matches]
 
