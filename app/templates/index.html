@@ -56,7 +56,6 @@
     socket.on('title result', function(data) {
 		$("#search_results").html(data);
 		$("#search_suggestion").click(function() {
-			console.log($("#search_suggestion").text());
 			socket.emit('query request', {'query_text': $("#search_suggestion").text(), 'query_type': $("#query_type").val()});
 			display_query_results()
 		});
