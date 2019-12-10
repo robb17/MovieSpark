@@ -15,15 +15,16 @@ movie_genre_table = db.Table('movie_genre_table', db.Model.metadata,
 #	db.Column('offset', db.Integer),
 #	db.Column('movie_referenced', db.Integer, ForeignKey('movie.movie_id')))
 
-tag_table = db.Table('tag_table', db.Model.metadata,
-	db.Column('movie_id', db.Integer, ForeignKey('movie.movie_id')),
-	db.Column('tagweight_id', db.Integer, ForeignKey('tagweight.tagweight_id')),
-	db.Column('tag_id', db.Integer, ForeignKey('tag.tag_id')))
+#tag_table = db.Table('tag_table', db.Model.metadata,
+#	db.Column('movie_id', db.Integer, ForeignKey('movie.movie_id')),
+#	db.Column('tagweight_id', db.Integer, ForeignKey('tagweight.tagweight_id')),
+#	db.Column('tag_id', db.Integer, ForeignKey('tag.tag_id')))
 
-class Relevance(db.Model):
+class RelevanceWeight(db.Model):
 	__tablename__ = 'relevance'
-	movie_key = db.Column(db.Integer, db.ForeignKey('movie.movie_id'), primary_key=True)
-	movie_referenced = db.Column(db.Integer, db.ForeignKey('movie.movie_id'), primary_key=True)
+	relevance_id = db.Column(db.Integer, primary_key=True)
+	movie_key = db.Column(db.Integer, db.ForeignKey('movie.movie_id'))
+	movie_referenced = db.Column(db.Integer, db.ForeignKey('movie.movie_id'))
 	offset = db.Column(db.Integer)
 
 class Movie(db.Model):
@@ -34,31 +35,23 @@ class Movie(db.Model):
 	year_released = db.Column(db.Integer)
 	genres = relationship("Genre", secondary=movie_genre_table, back_populates="movies")
 	#cast = relationship("Actor", secondary=movie_cast_table, back_populates="movies")
-	tagweight = relationship("TagWeight", secondary=tag_table, back_populates="movie")
-
-	# One-to-many relationship here is many-to-many as a result of its self-referential nature
-	relevance_key = relationship("Relevance", backref='key', primaryjoin=movie_id==Relevance.movie_key)
-	relevance_referenced = relationship("Relevance", backref='referenced', primaryjoin=movie_id==Relevance.movie_referenced)
-
-class TagWeight(db.Model):
-	__tablename__ = "tagweight"
-	tagweight_id = db.Column(db.Integer, primary_key=True)
-	weight = db.Column(db.Integer)
-	movie = relationship("Movie", secondary=tag_table, back_populates="tagweight")
-	tag = relationship("Tag", secondary=tag_table, back_populates="movies")
 
 class Genre(db.Model):
 	__tablename__ = 'genre'
 	genre_id = db.Column(db.Integer, primary_key=True)
 	name = db.Column(db.String(1000))
-	# Name should be constrained to one of a dictionary of values
 	movies = relationship("Movie", secondary=movie_genre_table, back_populates="genres")
+
+class TagWeight(db.Model):
+	__tablename__ = 'tagweight'
+	movie_id = db.Column(db.Integer, db.ForeignKey('movie.movie_id'), primary_key=True)
+	tag_id = db.Column(db.Integer, db.ForeignKey('tag.tag_id'), primary_key=True)
+	weight = db.Column(db.Integer)
 
 class Tag(db.Model):
 	__tablename__ = 'tag'
 	tag_id = db.Column(db.Integer, primary_key=True)
-	tag = db.Column(db.String(5000))
-	movies = relationship("TagWeight", secondary=tag_table, back_populates="tag")
+	name = db.Column(db.String(5000))
 
 #class Actor(db.Model):
 #	__tablename__ = 'actor'

@@ -11,7 +11,7 @@ from sqlalchemy.sql import text
 
 from .init_scripts import init_weights, get_movies, get_genres, get_tags_and_relevancy, get_scored_tags
 
-from .models import Movie, Genre, Tag, TagWeight, Relevance
+from .models import Movie, Genre, Tag, TagWeight, RelevanceWeight
 
 main = Blueprint('main', __name__)
 
@@ -162,6 +162,7 @@ def init_db():
 	genres_in_db = db.session.query(Genre).count()
 	tags_in_db = db.session.query(Tag).count()
 	tagweights_in_db = db.session.query(TagWeight).count()
+
 	print("finding a good basis set...")
 	raw_movies = get_movies()
 	print("narrowing basis set down to movies with tags...")
@@ -195,42 +196,23 @@ def init_db():
 		print("populating tags table...")
 		tag_dict = get_scored_tags()
 		for tag_id in tag_dict.keys():
-			new_tag = Tag(tag_id=tag_id, tag=tag_dict[tag_id])
+			new_tag = Tag(tag_id=tag_id, name=tag_dict[tag_id])
 			db.session.add(new_tag)
 		db.session.commit()
 
 	if tagweights_in_db == 0:
-		tag_list = []
-		n_tags = len(get_scored_tags())
-		print("caching tags...")
-		for x in range(1, n_tags + 1):				# get a pointer to each tag so we don't have to constantly re-look them up
-			tag_list.append(Tag.query.filter_by(tag_id=x).first())
 		print("connecting tagweights to movies and tags...")
 		movie_count = 1
 		start = time.time()
-		tagweight_id = 1
+		tag_dict = get_scored_tags()
 		for movie_id in movie_tag_dictionary.keys():
 			count = 1
 			movie = Movie.query.filter_by(movie_id=movie_id).first()
 			tagweight_lst = []
-#			relevant_tag_indices = [0, 0]
-#			nonrelevant_tag_indices = [0, 0]
-#			lst = movie_tag_dictionary[movie_id]
-#			for x in range (0, len(lst)):
-#				if lst[x] > lst[relevant_tag_indices[2]]:
-#					if lst[x] > lst[relevant_tag_indices[1]]:
-#
-#				elif tag_relevance < movie_tag_dictionary[movie_id][relevant_tag_indices[5]]:
-#					for index in relevant_tag_indices[3:]:
-#						if 
 			for tag_relevancy in movie_tag_dictionary[movie_id]:
-				tagweight = TagWeight(tagweight_id=tagweight_id, weight=tag_relevancy)
+				tagweight = TagWeight(movie_id=movie_id, tag_id=count, weight=tag_relevancy)
 				tagweight_lst.append(tagweight)
-				tag = tag_list[count - 1]
-				tagweight.movie.append(movie)
-				tagweight.tag.append(tag)
 				count += 1
-				tagweight_id += 1
 			db.session.add_all(tagweight_lst)
 			movie_count += 1
 			if movie_count % 50 == 0:
