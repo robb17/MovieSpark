@@ -6,11 +6,17 @@ from . import socketio
 from app import app
 import time
 
+from sqlalchemy import create_engine
+from sqlalchemy.sql import text
+
 from .init_scripts import init_weights, get_movies, get_genres, get_tags_and_relevancy, get_scored_tags
 
 from .models import Movie, Genre, Tag, TagWeight, Relevance
 
 main = Blueprint('main', __name__)
+
+basedir = os.path.abspath(os.path.dirname(__file__))
+engine = create_engine('sqlite:///' + os.path.join(basedir, 'db.sqlite'))
 
 @socketio.on('autofill request')
 def search(data):
@@ -52,24 +58,72 @@ def find_suggestions(data):
 		suggestions = tag_to_suggestions(results)
 	socketio.emit('suggestions result', suggestions, room=request.sid)
 
+#def movie_to_suggestions(search_movie):
+#	movies = Movie.query.all()
+#	search_list = [tagweight.weight for tagweight in search_movie.tagweight]
+#	best_match_val = None
+#	best_match = -1
+#	count = 1
+#	for movie in movies:
+#		if (movie.movie_id == search_movie.movie_id):
+#			continue
+#		diff = 0
+#		test_list = [tagweight.weight for tagweight in movie.tagweight]
+#		for i in range(0, 1128) :
+#			diff += abs(search_list[i] - test_list[i])
+#		avg_diff = diff / 1128
+#		diff = 0
+#		for i in range(0, 1128) :
+#			if (abs(search_list[i] - test_list[i]) > avg_diff) :
+#				diff += abs(search_list[i] - test_list[i])
+#		diff = int((diff / 1128) * 10000)
+#		relevance = db.session.query(Relevance).filter(Relevance.movie_key == search_movie.movie_id, Relevance.movie_referenced == movie.movie_id).first()
+#		if not relevance:
+#			relevance = db.session.query(Relevance).filter(Relevance.movie_key == movie.movie_id, Relevance.movie_referenced == search_movie.movie_id).first()
+#		if relevance:
+#			diff += relevance.offset
+#		if best_match_val == None:
+#			best_match_val = diff
+#			best_match = movie.movie_id
+#		if (diff < best_match_val):
+#			best_match_val = diff
+#			best_match = movie.movie_id
+#		count += 1
+#		if count % 5 == 0:
+#			print("at " + str(count))
+#	best_movie = db.session.query(Movie).filter(Movie.movie_id == best_match).first()
+#	return_str = "You should try " + best_movie[1]
+
 def movie_to_suggestions(search_movie):
+	conn = engine.connect()
+	print("starting")
 	movies = Movie.query.all()
-	search_list = search_movie.tagweight
+	print("done querying")
+	search_list = [tagweight.weight for tagweight in search_movie.tagweight]
 	best_match_val = None
 	best_match = -1
 	count = 1
 	for movie in movies:
+		start = time.time()
 		if (movie.movie_id == search_movie.movie_id):
 			continue
-		test_list = movie.tagweight
 		diff = 0
+
+		starting_list_build = time.time()
+		test_list = [tagweight.weight for tagweight in movie.tagweight]
+		print("finished building list at t = " + str(time.time() - starting_list_build))
+
+		starting_list_build = time.time()
+		test_list = conn.execute('SELECT weight FROM movie, tagweight WHERE tagweight.tagweight_id = movie.tagweight')
+		print("raw building list at t = " + str(time.time() - starting_list_build))
+
 		for i in range(0, 1128) :
-			diff += abs(search_list[i].weight - test_list[i].weight)
+			diff += abs(search_list[i] - test_list[i])
 		avg_diff = diff / 1128
 		diff = 0
 		for i in range(0, 1128) :
-			if (abs(search_list[i].weight - test_list[i].weight) > avg_diff) :
-				diff += abs(search_list[i].weight - test_list[i].weight)
+			if (abs(search_list[i] - test_list[i]) > avg_diff) :
+				diff += abs(search_list[i] - test_list[i])
 		diff = int((diff / 1128) * 10000)
 		relevance = db.session.query(Relevance).filter(Relevance.movie_key == search_movie.movie_id, Relevance.movie_referenced == movie.movie_id).first()
 		if not relevance:
@@ -85,8 +139,9 @@ def movie_to_suggestions(search_movie):
 		count += 1
 		if count % 5 == 0:
 			print("at " + str(count))
+		print(time.time() - start)
 	best_movie = db.session.query(Movie).filter(Movie.movie_id == best_match).first()
-	return_str = "You should try " + best_movie[1]
+	return best_movie.name
 
 def tag_to_suggestions(tag):
 	pass
@@ -158,6 +213,16 @@ def init_db():
 			count = 1
 			movie = Movie.query.filter_by(movie_id=movie_id).first()
 			tagweight_lst = []
+#			relevant_tag_indices = [0, 0]
+#			nonrelevant_tag_indices = [0, 0]
+#			lst = movie_tag_dictionary[movie_id]
+#			for x in range (0, len(lst)):
+#				if lst[x] > lst[relevant_tag_indices[2]]:
+#					if lst[x] > lst[relevant_tag_indices[1]]:
+#
+#				elif tag_relevance < movie_tag_dictionary[movie_id][relevant_tag_indices[5]]:
+#					for index in relevant_tag_indices[3:]:
+#						if 
 			for tag_relevancy in movie_tag_dictionary[movie_id]:
 				tagweight = TagWeight(tagweight_id=tagweight_id, weight=tag_relevancy)
 				tagweight_lst.append(tagweight)
