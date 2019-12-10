@@ -6,42 +6,20 @@ from . import socketio
 from app import app
 import time
 import random
-import multiprocessing as mp
 
 from sqlalchemy import create_engine
 from sqlalchemy.sql import text
-from sqlalchemy.schema import Index
+
+from multiprocessing import Pool
 
 from .init_scripts import init_weights, get_movies, get_genres, get_tags_and_relevancy, get_scored_tags
 
 from .models import Movie, Genre, Tag, TagWeight, RelevanceWeight
 
-N_PROCESSES = 8
-SAMPLE_SIZE = 2504
-
 main = Blueprint('main', __name__)
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 engine = create_engine('sqlite:///' + os.path.join(basedir, 'db.sqlite'))
-
-@socketio.on('upvote')
-def handle_upvote(data):
-    queried_movie_title = data['queried_movie']
-    suggested_movie_title = data['suggested_movie']
-    queried_movie = db.session.query(Movie).filter(Movie.name.ilike(queried_movie_title)).first()
-    suggested_movie = db.session.query(Movie).filter(Movie.name.ilike(suggested_movie_title)).first()
-    if not queried_movie or not suggested_movie:
-        return
-    current_offset = RelevanceWeight.query.filter(movie_key == queried_movie.movie_id, movie_referenced == suggested_movie.movie_id).first()
-    if not current_offset:
-        current_offset = RelevanceWeight.query.filter(movie_key == queried_movie.movie_id, movie_referenced == suggested_movie.movie_id).first()
-    if current_offset:
-        current_offset.offset = max(0, current_offset.offset - 100) # more relevant = less diff
-    else:
-        new_offset = RelevanceWeight(movie_key=queried_movie.movie_id, movie_referenced=suggested_movie.movie_id, offset=-100)
-        db.session.add(new_offset)
-    db.session.commit()
-    return "Thanks for your feedback!"
 
 @socketio.on('autofill request')
 def search(data):
@@ -83,42 +61,34 @@ def find_suggestions(data):
         suggestions = tag_to_suggestions(results)
     socketio.emit('query result', suggestions, room=request.sid)
 
-def movie_to_suggestions(search_movie):
-    movies = Movie.query.all()
+def make_tag_list(movie) :
     conn = engine.connect()
-    search_list = [int(row[0]) for row in conn.execute('SELECT weight FROM movie, tagweight WHERE movie.movie_id = ' + str(search_movie.movie_id) + ' AND tagweight.movie_id = movie.movie_id')]
+    test_list = [int(row[0]) for row in conn.execute('SELECT weight FROM movie, tagweight WHERE movie.movie_id = ' + str(movie.movie_id) + ' AND tagweight.movie_id = movie.movie_id')]
     conn.close()
-    count = 1
-    movie_lst = random.sample(movies, 2000)
+    return test_list
+
+def movie_to_suggestions(search_movie):
+    conn = engine.connect()
+    movies = Movie.query.all()
+    search_list = [int(row[0]) for row in conn.execute('SELECT weight FROM movie, tagweight WHERE movie.movie_id = ' + str(search_movie.movie_id) + ' AND tagweight.movie_id = movie.movie_id')]
+    matches = [[-1, float("inf")], [-1, float("inf")], [-1, float("inf")]]
     relevance_adjustments = RelevanceWeight.query.all()
     adjustment_dict = {}
     for adjustment in relevance_adjustments:
         adjustment_dict[adjustment.movie_key] = [adjustment.movie_referenced, adjustment.offset]
         adjustment_dict[adjustment.movie_referenced] = [adjustment.movie_key, adjustment.offset]
-
-    manager = mp.Manager()
-    final_lst = manager.list()
-    movies = random.sample(movies, SAMPLE_SIZE)
-    jobs = []
-    for z in range(0, N_PROCESSES):
-        proc = mp.Process(target = process_movie_to_suggestions, args = (movies[z * (SAMPLE_SIZE // N_PROCESSES): z * (SAMPLE_SIZE // N_PROCESSES) + (SAMPLE_SIZE // N_PROCESSES)], final_lst, search_movie, search_list, adjustment_dict))
-        jobs.append(proc)
-        proc.start()
-    for proc in jobs:
-        proc.join()
-    matches = [[pair[0].name, pair[1]] for pair in final_lst]
-    matches.sort(key=lambda x: x[1])
-    return [pair[0] for pair in matches[:3]]
-
-def process_movie_to_suggestions(movies, final_lst, search_movie, search_list, adjustment_dict):
-    matches = [[-1, float("inf")], [-1, float("inf")], [-1, float("inf")]]
-    conn = engine.connect()
-    for movie in movies:
+        
+    movie_list = random.sample(movies, 2500)
+    pool = Pool(processes=8)
+    results = pool.map(make_tag_list, movie_list)
+    print("Threads complete")
+        
+    for i in range(0,2000):
+        movie = movie_list[i]
         if (movie.movie_id == search_movie.movie_id):
             continue
         diff = 0
-
-        test_list = [int(row[0]) for row in conn.execute('SELECT weight FROM movie, tagweight WHERE movie.movie_id = ' + str(movie.movie_id) + ' AND tagweight.movie_id = movie.movie_id')]
+        test_list = results[i]
 
         for i in range(0, 1128) :
             diff += abs(search_list[i] - test_list[i])
@@ -148,53 +118,33 @@ def process_movie_to_suggestions(movies, final_lst, search_movie, search_list, a
                     break
                 x += 1
     conn.close()
-    for pair in matches:    # merge best 3 to best 3 found by all processes
-        final_lst.append([pair[0], pair[1]])
+    return [pair[0].name for pair in matches]
 
-def tag_to_suggestions(tag):
+def tag_to_suggestions(tag) :
     tag_id = tag.tag_id
     movies = Movie.query.all()
-    manager = mp.Manager()
-    final_lst = manager.list()
-    movies = random.sample(movies, SAMPLE_SIZE)
-    jobs = []
-    for z in range(0, N_PROCESSES):
-        proc = mp.Process(target = process_tag_to_suggestions, args = (movies[z * (SAMPLE_SIZE // N_PROCESSES): z * (SAMPLE_SIZE // N_PROCESSES) + (SAMPLE_SIZE // N_PROCESSES)], final_lst, tag_id))
-        jobs.append(proc)
-        proc.start()
-    for proc in jobs:
-        proc.join()
-    matches = [[pair[0].name, pair[1]] for pair in final_lst]
-    matches.sort(key=lambda x: x[1])
-    return [pair[0] for pair in matches[:3]]
-
-def process_tag_to_suggestions(movies, final_lst, tag_id):
-    matches = [[-1, float(-1)], [-1, float(-1)], [-1, float(-1)]]   # only add movies to local list object during finding period
-    for movie in movies:
-        tagweight = db.session.query(TagWeight).filter(TagWeight.movie_id == movie.movie_id, TagWeight.tag_id == tag_id).first()
-        weight = tagweight.weight
+    matches = [[-1, float(-1)], [-1, float(-1)], [-1, float(-1)]]
+    for movie in random.sample(movies, 2000):
+        this_tag = db.session.query(TagWeight).filter(TagWeight.movie_id == movie.movie_id, TagWeight.tag_id == tag_id).first()
+        weight = this_tag.weight
         if (weight > matches[2][1]):
-            bubble_up_new_movie(movie, weight, matches)
-    for pair in matches:    # merge best 3 to best 3 found by all processes
-        final_lst.append([pair[0], pair[1]])
-
-def bubble_up_new_movie(movie, weight, matches):
-    x = 1
-    for match in matches:
-        if weight > match[1]:
-            temp_movie = match[0]
-            temp_weight = match[1]
-            match[0] = movie
-            match[1] = weight
-            for match in matches[x:]:
-                second_temp_movie = match[0]
-                second_temp_weight = match[1]
-                match[0] = temp_movie
-                match[1] = temp_weight
-                temp_movie = second_temp_movie
-                temp_weight = second_temp_weight
-            break
-        x += 1
+            x = 1
+            for match in matches:
+                if weight > match[1]:
+                    temp_movie = match[0]
+                    temp_weight = match[1]
+                    match[0] = movie
+                    match[1] = weight
+                    for match in matches[x:]:
+                        second_temp_movie = match[0]
+                        second_temp_weight = match[1]
+                        match[0] = temp_movie
+                        match[1] = temp_weight
+                        temp_movie = second_temp_movie
+                        temp_weight = second_temp_weight
+                    break
+                x += 1
+    return [pair[0].name for pair in matches]
 
 
 @main.route('/')
@@ -270,10 +220,3 @@ def init_db():
                 print(time.time() - start)
                 start = time.time()
         db.session.commit()
-
-    print("adding index")
-    try:
-        index_tag_movie = Index('index_tag_movie', TagWeight.tag_id, TagWeight.movie_id)
-        index_tag_movie.create(bind=engine)
-    except Exception as e:
-        print("index could not be created, probably because it already exists")

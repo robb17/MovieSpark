@@ -3,6 +3,7 @@
 {% block content %}
 <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
 <script type="text/javascript">
+	var default_delay = 800;
     var protocol = window.location.protocol;
     var socket = io({transports: ['websocket']});
     socket.connect(protocol + '//' + document.domain + ':' + location.port);
@@ -10,7 +11,7 @@
     $(document).ready(function() {
     	var negative_width = -$("#hero").width();
 		$("#get_started").click(function() {
-			$("#start").animate({'margin-left': negative_width, 'margin-right': -negative_width}, 1500, function() {
+			$("#start").animate({'margin-left': negative_width, 'margin-right': -negative_width}, default_delay, function() {
 				$("#start").remove();
 				display_search_window();
 			});
@@ -20,7 +21,7 @@
 			display_query_results();
 		});
 		$("#back_to_search").click(function() {
-			$("#query_window").animate({'left': '100vw', 'right': '-100vw', 'top': '40%'}, 1500, function() {
+			$("#query_window").animate({'left': '100vw', 'right': '-100vw', 'top': '40%'}, default_delay, function() {
 				display_search_window();
 		    	for (var i = 0; i < 3; i++) {
     				$("#query_results" + (i + 1)).html('');
@@ -33,13 +34,13 @@
 		for (var i = 0; i < 3; i++) {
 			$("#query_results" + (i + 1)).html('Loading...');
 		}
-		$("#search_window").animate({'left': '-100vw', 'right': '100vw'}, 1500, function() {
-			$("#query_window").animate({'left': '0vw', 'right': '0vw', 'top': '40%'}, 1500);
+		$("#search_window").animate({'left': '-100vw', 'right': '100vw'}, default_delay, function() {
+			$("#query_window").animate({'left': '0vw', 'right': '0vw', 'top': '40%'}, default_delay);
 		});
 	}
 
 	function display_search_window() {
-		$("#search_window").animate({'left': '0vw', 'right': '0vw', 'top': '40%'}, 1500);
+		$("#search_window").animate({'left': '0vw', 'right': '0vw', 'top': '40%'}, default_delay);
 	}
 
     function query_on_type(evt, obj) {
