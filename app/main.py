@@ -99,7 +99,8 @@ def movie_to_suggestions(search_movie):
 	print("starting")
 	movies = Movie.query.all()
 	print("done querying")
-	search_list = [tagweight.weight for tagweight in search_movie.tagweight]
+	search_list = [int(row[0]) for row in conn.execute('SELECT weight FROM movie, tagweight WHERE movie.movie_id = ' + str(search_movie.movie_id) + ' AND tagweight.movie_id = movie.movie_id')]
+	print(search_list)
 	best_match_val = None
 	best_match = -1
 	count = 1
@@ -110,11 +111,7 @@ def movie_to_suggestions(search_movie):
 		diff = 0
 
 		starting_list_build = time.time()
-		test_list = [tagweight.weight for tagweight in movie.tagweight]
-		print("finished building list at t = " + str(time.time() - starting_list_build))
-
-		starting_list_build = time.time()
-		test_list = conn.execute('SELECT weight FROM movie, tagweight WHERE tagweight.tagweight_id = movie.tagweight')
+		test_list = [int(row[0]) for row in conn.execute('SELECT weight FROM movie, tagweight WHERE movie.movie_id = ' + str(search_movie.movie_id) + ' AND tagweight.movie_id = movie.movie_id')]
 		print("raw building list at t = " + str(time.time() - starting_list_build))
 
 		for i in range(0, 1128) :
@@ -125,11 +122,11 @@ def movie_to_suggestions(search_movie):
 			if (abs(search_list[i] - test_list[i]) > avg_diff) :
 				diff += abs(search_list[i] - test_list[i])
 		diff = int((diff / 1128) * 10000)
-		relevance = db.session.query(Relevance).filter(Relevance.movie_key == search_movie.movie_id, Relevance.movie_referenced == movie.movie_id).first()
-		if not relevance:
-			relevance = db.session.query(Relevance).filter(Relevance.movie_key == movie.movie_id, Relevance.movie_referenced == search_movie.movie_id).first()
-		if relevance:
-			diff += relevance.offset
+		#relevance = db.session.query(RelevanceWeight).filter(RelevanceWeight.movie_key == search_movie.movie_id, RelevanceWeight.movie_referenced == movie.movie_id).first()
+		#if not relevance:
+		#	relevance = db.session.query(RelevanceWeight).filter(RelevanceWeight.movie_key == movie.movie_id, RelevanceWeight.movie_referenced == search_movie.movie_id).first()
+		#if relevance:
+		#	diff += relevance.offset
 		if best_match_val == None:
 			best_match_val = diff
 			best_match = movie.movie_id
