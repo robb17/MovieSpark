@@ -36,7 +36,7 @@ def handle_upvote(data):
     if not current_offset:
         current_offset = RelevanceWeight.query.filter(movie_key == queried_movie.movie_id, movie_referenced == suggested_movie.movie_id).first()
     if current_offset:
-        current_offset.offset = max(0, current_offset.offset - 100) # more relevant = less diff
+        current_offset.offset = max(-20000, current_offset.offset - 100) # more relevant = less diff
     else:
         new_offset = RelevanceWeight(movie_key=queried_movie.movie_id, movie_referenced=suggested_movie.movie_id, offset=-100)
         db.session.add(new_offset)
