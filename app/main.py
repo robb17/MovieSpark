@@ -10,7 +10,7 @@ from . import socketio
 from app import app
 import time
 import random
-import multiprocessing as mp
+import threading as th
 import requests
 
 from sqlalchemy import create_engine
@@ -21,8 +21,8 @@ from .init_scripts import init_weights, get_movies, get_genres, get_tags_and_rel
 
 from .models import Movie, Genre, Tag, TagWeight, RelevanceWeight
 
-N_PROCESSES = 8
-SAMPLE_SIZE = 280
+N_PROCESSES = 1
+SAMPLE_SIZE = 1000
 
 main = Blueprint('main', __name__)
 
@@ -106,12 +106,10 @@ def find_suggestions(data):
         suggestions = movie_to_suggestions(results)
     else:
         suggestions = tag_to_suggestions(results)
-    in_depth_details = []
+    in_depth_details = [["" for x in range(0, 6)] for y in range(0, 3)]
 
+    it = 0
     for suggestion in suggestions:
-        plot = ""
-        poster = ""
-        cast = ""
         movie = db.session.query(Movie).filter(Movie.name.ilike(suggestion)).first()
         genres = ""
         year = ""
@@ -120,7 +118,18 @@ def find_suggestions(data):
                 genres += str(genre.name) + ", "
             genres = genres[:-2]
             year = movie.year_released
+        in_depth_details[it][1] = suggestion
+        in_depth_details[it][4] = year
+        in_depth_details[it][5] = genres
+        it += 1
 
+    socketio.emit('query result', in_depth_details, room=request.sid)
+
+    it = 0
+    for suggestion in suggestions:
+        plot = ""
+        poster = ""
+        cast = ""
         parameters = {
             't': suggestion
         }
@@ -142,7 +151,11 @@ def find_suggestions(data):
             pass
         attrList = [poster, suggestion, plot, cast, year, genres]
         # append it to the list of tuples
-        in_depth_details.append(attrList)
+        in_depth_details[it][0] = poster
+        in_depth_details[it][1] = suggestion
+        in_depth_details[it][2] = plot
+        in_depth_details[it][3] = cast
+        it += 1
 
     print("query complete")
     socketio.emit('query result', in_depth_details, room=request.sid)
@@ -160,18 +173,22 @@ def movie_to_suggestions(search_movie):
         adjustment_dict[adjustment.movie_key] = [adjustment.movie_referenced, adjustment.offset]
         adjustment_dict[adjustment.movie_referenced] = [adjustment.movie_key, adjustment.offset]
 
-    manager = mp.Manager()
-    final_lst = manager.list()
+    final_lst = []  # thread-safe in the append operation
     movies = random.sample(movies, SAMPLE_SIZE)
     jobs = []
+    start_time = time.time()
     for z in range(0, N_PROCESSES):
-        proc = mp.Process(target = process_movie_to_suggestions, args = (movies[z * (SAMPLE_SIZE // N_PROCESSES): z * (SAMPLE_SIZE // N_PROCESSES) + (SAMPLE_SIZE // N_PROCESSES)], final_lst, search_movie, search_list, adjustment_dict))
-        jobs.append(proc)
-        proc.start()
-    for proc in jobs:
-        proc.join()
+        thread = th.Thread(target = process_movie_to_suggestions, args = (movies[z * (SAMPLE_SIZE // N_PROCESSES): z * (SAMPLE_SIZE // N_PROCESSES) + (SAMPLE_SIZE // N_PROCESSES)], final_lst, search_movie, search_list, adjustment_dict,))
+        jobs.append(thread)
+        thread.start()
+    for thread in jobs:
+        thread.join()
+        print("thread done")
+    print(time.time() - start_time)
+    print("getting matches")
     matches = [[pair[0].name, pair[1]] for pair in final_lst]
     matches.sort(key=lambda x: x[1])
+    print("done")
     return [pair[0] for pair in matches[:3]]
 
 def process_movie_to_suggestions(movies, final_lst, search_movie, search_list, adjustment_dict):
@@ -218,16 +235,16 @@ def process_movie_to_suggestions(movies, final_lst, search_movie, search_list, a
 def tag_to_suggestions(tag):
     tag_id = tag.tag_id
     movies = Movie.query.all()
-    manager = mp.Manager()
-    final_lst = manager.list()
+    final_lst = []
     movies = random.sample(movies, SAMPLE_SIZE)
     jobs = []
     for z in range(0, N_PROCESSES):
-        proc = mp.Process(target = process_tag_to_suggestions, args = (movies[z * (SAMPLE_SIZE // N_PROCESSES): z * (SAMPLE_SIZE // N_PROCESSES) + (SAMPLE_SIZE // N_PROCESSES)], final_lst, tag_id))
-        jobs.append(proc)
-        proc.start()
-    for proc in jobs:
-        proc.join()
+        thread = th.Thread(target = process_tag_to_suggestions, args = (movies[z * (SAMPLE_SIZE // N_PROCESSES): z * (SAMPLE_SIZE // N_PROCESSES) + (SAMPLE_SIZE // N_PROCESSES)], final_lst, tag_id,))
+        jobs.append(thread)
+        thread.start()
+    for thread in jobs:
+        thread.join()
+        print("thread done")
     matches = [[pair[0].name, pair[1]] for pair in final_lst]
     matches.sort(key=lambda x: x[1])
     return [pair[0] for pair in matches[:3]]
@@ -235,7 +252,8 @@ def tag_to_suggestions(tag):
 def process_tag_to_suggestions(movies, final_lst, tag_id):
     matches = [[-1, float(-1)], [-1, float(-1)], [-1, float(-1)]]   # only add movies to local list object during finding period
     for movie in movies:
-        tagweight = db.session.query(TagWeight).filter(TagWeight.movie_id == movie.movie_id, TagWeight.tag_id == tag_id).first()
+        with app.app_context():
+            tagweight = db.session.query(TagWeight).filter(TagWeight.movie_id == movie.movie_id, TagWeight.tag_id == tag_id).first()
         weight = tagweight.weight
         if (weight > matches[2][1]):
             bubble_up_new_movie(movie, weight, matches)
