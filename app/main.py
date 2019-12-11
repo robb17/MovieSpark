@@ -7,6 +7,7 @@ from app import app
 import time
 import random
 import multiprocessing as mp
+import requests
 
 from sqlalchemy import create_engine
 from sqlalchemy.sql import text
@@ -34,7 +35,7 @@ def handle_feedback(data):
         queried_movie = db.session.query(Movie).filter(Movie.name.ilike(query_input)).first()
         suggested_movie = db.session.query(Movie).filter(Movie.name.ilike(suggested_movie_title)).first()
         if not queried_movie or not suggested_movie:
-            socketio.emit('feedback response', {"text": "Sorry, movie(s) not found", "movie_title": suggested_movie_title}, room=request.sid)
+            socketio.emit('feedback response', {"text": "Sorry, movie not found", "movie_title": suggested_movie_title}, room=request.sid)
             return
         current_offset = RelevanceWeight.query.filter(RelevanceWeight.movie_key == queried_movie.movie_id, RelevanceWeight.movie_referenced == suggested_movie.movie_id).first()
         if not current_offset:
@@ -53,7 +54,7 @@ def handle_feedback(data):
         queried_tag = db.session.query(Tag).filter(Tag.name == query_input).first()
         suggested_movie = db.session.query(Movie).filter(Movie.name.ilike(suggested_movie_title)).first()
         if not queried_tag or not suggested_movie:
-            socketio.emit('feedback response', {"text": "Sorry, movie(s) not found", "movie_title": suggested_movie_title}, room=request.sid)
+            socketio.emit('feedback response', {"text": "Sorry, movie not found", "movie_title": suggested_movie_title}, room=request.sid)
             return
         tagweight = db.session.query(TagWeight).filter(TagWeight.tag_id == queried_tag.tag_id, TagWeight.movie_id == suggested_movie.movie_id).first()
         temp_weight = min(tagweight.weight + 100, 10000) if upvote else max(tagweight.weight - 100, 0)
@@ -100,7 +101,45 @@ def find_suggestions(data):
         suggestions = movie_to_suggestions(results)
     else:
         suggestions = tag_to_suggestions(results)
-    socketio.emit('query result', suggestions, room=request.sid)
+    in_depth_details = []
+
+    for suggestion in suggestions:
+        plot = ""
+        poster = ""
+        cast = ""
+        movie = db.session.query(Movie).filter(Movie.name.ilike(suggestion)).first()
+        genres = ""
+        year = ""
+        if movie:
+            for genre in movie.genres:
+                genres += str(genre.name) + ", "
+            genres = genres[:-2]
+            year = movie.year_released
+
+        parameters = {
+            't': suggestion
+        }
+        response = requests.get("http://www.omdbapi.com/?i=tt3896198&apikey=e35c922", params=parameters)
+
+        #create a tuple 
+        jversion = response.json()
+        try: 
+            plot = jversion['Plot']
+        except Exception as e:
+            pass
+        try: 
+            poster = jversion['Poster']
+        except Exception as e:
+            pass
+        try:
+            cast = jversion['Actors']
+        except Exception as e:
+            pass
+        attrList = [poster, suggestion, plot, cast, year, genres]
+        # append it to the list of tuples
+        in_depth_details.append(attrList)
+
+    socketio.emit('query result', in_depth_details, room=request.sid)
 
 def movie_to_suggestions(search_movie):
     movies = Movie.query.all()
