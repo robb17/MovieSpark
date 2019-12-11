@@ -1,3 +1,7 @@
+# necessary for spawning new threads without getting deleted by the background thread
+import eventlet
+eventlet.monkey_patch()
+
 from flask import Flask, Blueprint, render_template, request, session, redirect, url_for, flash
 from flask_socketio import SocketIO, join_room, leave_room
 from . import db
