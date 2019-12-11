@@ -27,10 +27,12 @@
     				$("#query_results" + (i + 1)).html('');
     			}
 			});
+			reset_thumbs();
 		});
 	});
 
 	function display_query_results() {
+		destroy_thumbs();
 		for (var i = 0; i < 3; i++) {
 			$("#query_results" + (i + 1)).html('Loading...');
 		}
@@ -39,9 +41,14 @@
 		});
 	}
 
+	function send_feedback(movie_title, upvote) {
+		socket.emit('feedback', {'query_input': $("#query_text").val(), 'suggested_movie': movie_title, 'upvote': (upvote ? 'yes' : 'no'), 'query_type': $("#query_type").val()});
+	}
+
 	function display_search_window() {
 		$("#search_window").animate({'left': '0vw', 'right': '0vw', 'top': '40%'}, default_delay);
 	}
+
 
     function query_on_type(evt, obj) {
         if (evt.key != 'Enter') {
@@ -60,24 +67,59 @@
         }
     }
 
-    socket.on('title result', function(data) {
+	socket.on('title result', function(data) {
 		$("#search_results").html(data);
 		$("#search_suggestion").click(function() {
+			$("#query_text").val($("#search_suggestion").text());
 			socket.emit('query request', {'query_text': $("#search_suggestion").text(), 'query_type': $("#query_type").val()});
 			display_query_results()
 		});
-    });
+	});
 
-    socket.on('query result', function(data) {
-    	if (data[0] == "No results found") {
-    		data[0] = "";
-    		data.push("No results found");
-    		data.push("");
-    	}
-    	for (var i = 0; i < data.length; i++) {
-    		$("#query_results" + (i + 1)).html(data[i]);
-    	}
-    });
+	socket.on('query result', function(data) {
+		if (data[0] != "No results found") {
+			add_thumbs();
+		}
+		if (data[0] == "No results found") {
+			data[0] = "";
+			data.push("No results found");
+			data.push("");
+		}
+		for (var i = 0; i < data.length; i++) {
+			$("#query_results" + (i + 1)).html(data[i]);
+		}
+	});
+
+	socket.on('feedback response', function(data) {
+		var text = data['text'];
+		var movie_title = data['movie_title'];
+		for (var i = 0; i < 3; i++) {
+			if ($("#query_results" + (i + 1)).text() == movie_title) {
+				$("#feedback" + (i + 1)).html("<i>" + text + "</i>");
+				break;
+			}
+		}
+	});
+
+	function reset_thumbs() {
+		for (var i = 1; i < 4; i++) {
+			if ($("#feedback" + (i)).text() == "Thanks for your feedback!" || $("#feedback" + (i)).text() == "Sorry, movie(s) not found" || $("#feedback" + (i)).html() == "") {
+				$("#feedback" + (i)).html('<img src="/static/assets/thumbs-up.png" style="cursor:pointer; width: 30px; height: 30px;" id="upvote' + i + '" onclick="send_feedback($(\'#query_results' + i + '\').text(), true)"><img src="/static/assets/thumbs-down.png" style="cursor:pointer; width: 30px; height: 30px;" id="downvote' + i + '" onclick="send_feedback($(\'#query_results' + i + '\').text(), false)">');
+			}
+		}
+	}
+
+	function add_thumbs() {
+		for (var i = 1; i < 4; i++) {
+			$("#feedback" + (i)).html('<img src="/static/assets/thumbs-up.png" style="cursor:pointer; width: 30px; height: 30px;" id="upvote' + i + '" onclick="send_feedback($(\'#query_results' + i + '\').text(), true)"><img src="/static/assets/thumbs-down.png" style="cursor:pointer; width: 30px; height: 30px;" id="downvote' + i + '" onclick="send_feedback($(\'#query_results' + i + '\').text(), false)">');
+		}
+	}
+
+	function destroy_thumbs() {
+		for (var i = 1; i < 4; i++) {
+			$("#feedback" + (i)).html('');
+		}
+	}
 
 </script>
 
@@ -137,11 +179,23 @@
 			<h1 class="title has-text-black has-text-centered">Results</h1>
 			<div class="has-text-centered" id="query_results">
 				<div class="columns" style="padding-bottom: 10px;">
-					<div class="column" id="query_results1">
+					<div class="column">
+						<div class="container" id="query_results1">
+						</div>
+						<div class="container" id="feedback1">
+						</div>
 					</div>
-					<div class="column" id="query_results2">
+					<div class="column">
+						<div class="container" id="query_results2">
+						</div>
+						<div class="container" id="feedback2">
+						</div>
 					</div>
-					<div class="column" id="query_results3">
+					<div class="column">
+						<div class="container" id="query_results3">
+						</div>
+						<div class="container" id="feedback3">
+						</div>
 					</div>
 				</div>
 			</div>

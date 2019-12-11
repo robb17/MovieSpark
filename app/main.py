@@ -24,24 +24,43 @@ main = Blueprint('main', __name__)
 basedir = os.path.abspath(os.path.dirname(__file__))
 engine = create_engine('sqlite:///' + os.path.join(basedir, 'db.sqlite'))
 
-@socketio.on('upvote')
-def handle_upvote(data):
-    queried_movie_title = data['queried_movie']
+@socketio.on('feedback')
+def handle_feedback(data):
+    query_input = data['query_input']
+    query_type = data['query_type']
     suggested_movie_title = data['suggested_movie']
-    queried_movie = db.session.query(Movie).filter(Movie.name.ilike(queried_movie_title)).first()
-    suggested_movie = db.session.query(Movie).filter(Movie.name.ilike(suggested_movie_title)).first()
-    if not queried_movie or not suggested_movie:
+    upvote = True if data['upvote'] == 'yes' else False
+    if query_type == 'Movie':
+        queried_movie = db.session.query(Movie).filter(Movie.name.ilike(query_input)).first()
+        suggested_movie = db.session.query(Movie).filter(Movie.name.ilike(suggested_movie_title)).first()
+        if not queried_movie or not suggested_movie:
+            socketio.emit('feedback response', {"text": "Sorry, movie(s) not found", "movie_title": suggested_movie_title}, room=request.sid)
+            return
+        current_offset = RelevanceWeight.query.filter(RelevanceWeight.movie_key == queried_movie.movie_id, RelevanceWeight.movie_referenced == suggested_movie.movie_id).first()
+        if not current_offset:
+            current_offset = RelevanceWeight.query.filter(RelevanceWeight.movie_key == queried_movie.movie_id, RelevanceWeight.movie_referenced == suggested_movie.movie_id).first()
+        if current_offset:
+            new_value = max(-10000, current_offset.offset - 100) if upvote else min(10000, current_offset.offset + 100)
+            current_offset.offset = new_value # more relevant = less diff
+        else:
+            offset = -100 if upvote else 100
+            new_offset = RelevanceWeight(movie_key=queried_movie.movie_id, movie_referenced=suggested_movie.movie_id, offset=offset)
+            db.session.add(new_offset)
+        db.session.commit()
+        socketio.emit('feedback response', {"text": "Thanks for your feedback!", "movie_title": suggested_movie_title}, room=request.sid)
         return
-    current_offset = RelevanceWeight.query.filter(movie_key == queried_movie.movie_id, movie_referenced == suggested_movie.movie_id).first()
-    if not current_offset:
-        current_offset = RelevanceWeight.query.filter(movie_key == queried_movie.movie_id, movie_referenced == suggested_movie.movie_id).first()
-    if current_offset:
-        current_offset.offset = max(-20000, current_offset.offset - 100) # more relevant = less diff
     else:
-        new_offset = RelevanceWeight(movie_key=queried_movie.movie_id, movie_referenced=suggested_movie.movie_id, offset=-100)
-        db.session.add(new_offset)
-    db.session.commit()
-    return "Thanks for your feedback!"
+        queried_tag = db.session.query(Tag).filter(Tag.name == query_input).first()
+        suggested_movie = db.session.query(Movie).filter(Movie.name.ilike(suggested_movie_title)).first()
+        if not queried_tag or not suggested_movie:
+            socketio.emit('feedback response', {"text": "Sorry, movie(s) not found", "movie_title": suggested_movie_title}, room=request.sid)
+            return
+        tagweight = db.session.query(TagWeight).filter(TagWeight.tag_id == queried_tag.tag_id, TagWeight.movie_id == suggested_movie.movie_id).first()
+        temp_weight = min(tagweight.weight + 100, 10000) if upvote else max(tagweight.weight - 100, 0)
+        tagweight.weight = temp_weight
+        db.session.commit()
+        socketio.emit('feedback response', {"text": "Thanks for your feedback!", "movie_title": suggested_movie_title}, room=request.sid)
+        return
 
 @socketio.on('autofill request')
 def search(data):
