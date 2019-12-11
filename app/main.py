@@ -173,7 +173,7 @@ def movie_to_suggestions(search_movie):
         if (movie.movie_id == search_movie.movie_id):
             continue
         diff = 0
-        test_list = results[i]
+        test_list = [int(row[0]) for row in conn.execute('SELECT weight FROM movie, tagweight WHERE movie.movie_id = ' + str(movie.movie_id) + ' AND tagweight.movie_id = movie.movie_id')]
 
         for i in range(0, 1128) :
             diff += abs(search_list[i] - test_list[i])
