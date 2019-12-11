@@ -10,6 +10,7 @@ from . import socketio
 from app import app
 import time
 import random
+import threading as th
 import requests
 
 from sqlalchemy import create_engine
@@ -20,6 +21,7 @@ from .init_scripts import init_weights, get_movies, get_genres, get_tags_and_rel
 
 from .models import Movie, Genre, Tag, TagWeight, RelevanceWeight
 
+N_PROCESSES = 1
 SAMPLE_SIZE = 1000
 
 main = Blueprint('main', __name__)
@@ -159,21 +161,45 @@ def find_suggestions(data):
     socketio.emit('query result', in_depth_details, room=request.sid)
 
 def movie_to_suggestions(search_movie):
-    conn = engine.connect()
     movies = Movie.query.all()
+    conn = engine.connect()
     search_list = [int(row[0]) for row in conn.execute('SELECT weight FROM movie, tagweight WHERE movie.movie_id = ' + str(search_movie.movie_id) + ' AND tagweight.movie_id = movie.movie_id')]
-    matches = [[-1, float("inf")], [-1, float("inf")], [-1, float("inf")]]
+    conn.close()
+    count = 1
+    movie_lst = random.sample(movies, 2000)
     relevance_adjustments = RelevanceWeight.query.all()
     adjustment_dict = {}
     for adjustment in relevance_adjustments:
         adjustment_dict[adjustment.movie_key] = [adjustment.movie_referenced, adjustment.offset]
         adjustment_dict[adjustment.movie_referenced] = [adjustment.movie_key, adjustment.offset]
 
-    for movie in random.sample(movies, 2500):
+    final_lst = []  # thread-safe in the append operation
+    movies = random.sample(movies, SAMPLE_SIZE)
+    jobs = []
+    start_time = time.time()
+    for z in range(0, N_PROCESSES):
+        thread = th.Thread(target = process_movie_to_suggestions, args = (movies[z * (SAMPLE_SIZE // N_PROCESSES): z * (SAMPLE_SIZE // N_PROCESSES) + (SAMPLE_SIZE // N_PROCESSES)], final_lst, search_movie, search_list, adjustment_dict,))
+        jobs.append(thread)
+        thread.start()
+    for thread in jobs:
+        thread.join()
+        print("thread done")
+    print(time.time() - start_time)
+    print("getting matches")
+    matches = [[pair[0].name, pair[1]] for pair in final_lst]
+    matches.sort(key=lambda x: x[1])
+    print("done")
+    return [pair[0] for pair in matches[:3]]
+
+def process_movie_to_suggestions(movies, final_lst, search_movie, search_list, adjustment_dict):
+    matches = [[-1, float("inf")], [-1, float("inf")], [-1, float("inf")]]
+    conn = engine.connect()
+    for movie in movies:
         if (movie.movie_id == search_movie.movie_id):
             continue
         diff = 0
-        test_list = results[i]
+
+        test_list = [int(row[0]) for row in conn.execute('SELECT weight FROM movie, tagweight WHERE movie.movie_id = ' + str(movie.movie_id) + ' AND tagweight.movie_id = movie.movie_id')]
 
         for i in range(0, 1128) :
             diff += abs(search_list[i] - test_list[i])
@@ -203,33 +229,36 @@ def movie_to_suggestions(search_movie):
                     break
                 x += 1
     conn.close()
-    return [pair[0].name for pair in matches]
+    for pair in matches:    # merge best 3 to best 3 found by all processes
+        final_lst.append([pair[0], pair[1]])
 
-def tag_to_suggestions(tag) :
+def tag_to_suggestions(tag):
     tag_id = tag.tag_id
     movies = Movie.query.all()
-    matches = [[-1, float(-1)], [-1, float(-1)], [-1, float(-1)]]
-    for movie in random.sample(movies, 2000):
-        this_tag = db.session.query(TagWeight).filter(TagWeight.movie_id == movie.movie_id, TagWeight.tag_id == tag_id).first()
-        weight = this_tag.weight
+    final_lst = []
+    movies = random.sample(movies, SAMPLE_SIZE)
+    jobs = []
+    for z in range(0, N_PROCESSES):
+        thread = th.Thread(target = process_tag_to_suggestions, args = (movies[z * (SAMPLE_SIZE // N_PROCESSES): z * (SAMPLE_SIZE // N_PROCESSES) + (SAMPLE_SIZE // N_PROCESSES)], final_lst, tag_id,))
+        jobs.append(thread)
+        thread.start()
+    for thread in jobs:
+        thread.join()
+        print("thread done")
+    matches = [[pair[0].name, pair[1]] for pair in final_lst]
+    matches.sort(key=lambda x: x[1])
+    return [pair[0] for pair in matches[:3]]
+
+def process_tag_to_suggestions(movies, final_lst, tag_id):
+    matches = [[-1, float(-1)], [-1, float(-1)], [-1, float(-1)]]   # only add movies to local list object during finding period
+    for movie in movies:
+        with app.app_context():
+            tagweight = db.session.query(TagWeight).filter(TagWeight.movie_id == movie.movie_id, TagWeight.tag_id == tag_id).first()
+        weight = tagweight.weight
         if (weight > matches[2][1]):
-            x = 1
-            for match in matches:
-                if weight > match[1]:
-                    temp_movie = match[0]
-                    temp_weight = match[1]
-                    match[0] = movie
-                    match[1] = weight
-                    for match in matches[x:]:
-                        second_temp_movie = match[0]
-                        second_temp_weight = match[1]
-                        match[0] = temp_movie
-                        match[1] = temp_weight
-                        temp_movie = second_temp_movie
-                        temp_weight = second_temp_weight
-                    break
-                x += 1
-    return [pair[0].name for pair in matches]
+            bubble_up_new_movie(movie, weight, matches)
+    for pair in matches:    # merge best 3 to best 3 found by all processes
+        final_lst.append([pair[0], pair[1]])
 
 def bubble_up_new_movie(movie, weight, matches):
     x = 1
