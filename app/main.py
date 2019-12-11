@@ -169,7 +169,7 @@ def movie_to_suggestions(search_movie):
         adjustment_dict[adjustment.movie_key] = [adjustment.movie_referenced, adjustment.offset]
         adjustment_dict[adjustment.movie_referenced] = [adjustment.movie_key, adjustment.offset]
 
-    for movie in random.sample(movies, 2500):
+    for movie in random.sample(movies, 1800):
         if (movie.movie_id == search_movie.movie_id):
             continue
         diff = 0
