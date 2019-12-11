@@ -22,7 +22,7 @@ from .init_scripts import init_weights, get_movies, get_genres, get_tags_and_rel
 from .models import Movie, Genre, Tag, TagWeight, RelevanceWeight
 
 N_PROCESSES = 8
-SAMPLE_SIZE = 2504
+SAMPLE_SIZE = 280
 
 main = Blueprint('main', __name__)
 
@@ -94,6 +94,7 @@ def test_for_empty_result(query_type, final_input):
 
 @socketio.on('query request')
 def find_suggestions(data):
+    print("query request received")
     user_input = data['query_text']
     query_type = data['query_type']
     suggestions = None
@@ -143,6 +144,7 @@ def find_suggestions(data):
         # append it to the list of tuples
         in_depth_details.append(attrList)
 
+    print("query complete")
     socketio.emit('query result', in_depth_details, room=request.sid)
 
 def movie_to_suggestions(search_movie):
