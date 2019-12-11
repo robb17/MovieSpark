@@ -259,6 +259,10 @@ def bubble_up_new_movie(movie, weight, matches):
 def index():
     return render_template('index.html')
 
+@main.route('/about')
+def about():
+    return render_template('about.html')
+
 @main.route('/init')
 def init():
     init_db()
