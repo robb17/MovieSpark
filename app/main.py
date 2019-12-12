@@ -92,7 +92,6 @@ def test_for_empty_result(query_type, final_input):
 
 @socketio.on('query request')
 def find_suggestions(data):
-    print("query request received")
     user_input = data['query_text']
     query_type = data['query_type']
     suggestions = None
@@ -155,7 +154,6 @@ def find_suggestions(data):
         in_depth_details[it][3] = cast
         it += 1
 
-    print("query complete")
     socketio.emit('query result', in_depth_details, room=request.sid)
 
 def movie_to_suggestions(search_movie):
@@ -270,9 +268,9 @@ def init_db():
     tags_in_db = db.session.query(Tag).count()
     tagweights_in_db = db.session.query(TagWeight).count()
 
-    print("finding a good basis set...")
+    #print("finding a good basis set...")
     raw_movies = get_movies()
-    print("narrowing basis set down to movies with tags...")
+    #print("narrowing basis set down to movies with tags...")
     movie_tag_dictionary = get_tags_and_relevancy(raw_movies)
     movies = []
     for movie in raw_movies:
@@ -280,7 +278,7 @@ def init_db():
             movies.append(movie)
 
     if movies_in_db == 0 or genres_in_db == 0:
-        print("populating genres table...")
+        #print("populating genres table...")
         genres = get_genres(movies)
         if genres_in_db == 0:
             for i in range(0, len(genres)):
@@ -288,7 +286,7 @@ def init_db():
                 new_genre = Genre(genre_id=i, name=genre)
                 db.session.add(new_genre)
         db.session.commit()
-        print("populating movies table...")
+        #print("populating movies table...")
         if movies_in_db == 0:
             for movie in movies:
                 new_movie = Movie(movie_id=movie[0], name=movie[1], rating=int(movie[4] * 10000), year_released=movie[2])
@@ -296,11 +294,11 @@ def init_db():
                 for genre in movie[3]:
                     stored_genre = Genre.query.filter_by(name=genre).first()
                     new_movie.genres.append(stored_genre)
-        print("there are " + str(len(movies)) + " movies in the database")
+        #print("there are " + str(len(movies)) + " movies in the database")
         db.session.commit()
 
     if tags_in_db == 0:
-        print("populating tags table...")
+        #print("populating tags table...")
         tag_dict = get_scored_tags()
         for tag_id in tag_dict.keys():
             new_tag = Tag(tag_id=tag_id, name=tag_dict[tag_id])
@@ -308,7 +306,7 @@ def init_db():
         db.session.commit()
 
     if tagweights_in_db == 0:
-        print("connecting tagweights to movies and tags...")
+        #print("connecting tagweights to movies and tags...")
         movie_count = 1
         start = time.time()
         tag_dict = get_scored_tags()
@@ -323,14 +321,15 @@ def init_db():
             db.session.add_all(tagweight_lst)
             movie_count += 1
             if movie_count % 50 == 0:
-                print("processing tags for movie " + str(movie_count) + "...")
-                print(time.time() - start)
+                #print("processing tags for movie " + str(movie_count) + "...")
+                #print(time.time() - start)
                 start = time.time()
         db.session.commit()
 
-    print("adding index")
+    #print("adding index")
     try:
         index_tag_movie = Index('index_tag_movie', TagWeight.tag_id, TagWeight.movie_id)
         index_tag_movie.create(bind=engine)
     except Exception as e:
-        print("index could not be created, probably because it already exists")
+        pass
+        #print("index could not be created, probably because it already exists")
