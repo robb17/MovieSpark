@@ -157,6 +157,36 @@ def find_suggestions(data):
     socketio.emit('query result', in_depth_details, room=request.sid)
 
 def movie_to_suggestions(search_movie):
+    #print("starting")
+    #all_tagweights = TagWeight.query.all()
+    #print("done querying tagweights")
+    #search_tagweights = []
+    #start_time = time.time()
+    #for tagweight in all_tagweights:
+    #    if tagweight.movie_id == search_movie.movie_id:
+    #        search_tagweights.append(tagweight)
+    #search_tagweights.sort(key=lambda x: x.weight)
+    #print("done sorting")
+    #best_worst_tagweights = search_tagweights[-4:-1]
+    #best_worst_tagweights += search_tagweights[0:3]
+    #print(best_worst_tagweights)
+    #movie_ids = []
+    #miss_margin = 50
+    #while len(movie_ids) < 7:
+    #    for relevant_tagweight in best_worst_tagweights:
+    #        for tagweight in all_tagweights:
+    #            if tagweight.weight >= relevant_tagweight.weight - miss_margin and tagweight.weight <= relevant_tagweight.weight + miss_margin:
+    #                movie_ids.append(tagweight.movie_id)
+    #    print("widening bounds")
+    #    miss_margin += 50
+    #print("done!")
+    #select_movie_ids = random.sample(movie_ids, 3)
+    #select_movies = []
+    #for id in select_movie_ids:
+    #    select_movies.append(db.session.query(Movie).filter(Movie.movie_id == id).first().name)
+    #print(time.time() - start_time)
+    #return select_movies
+    start_time = time.time()
     conn = engine.connect()
     movies = Movie.query.all()
     search_list = [int(row[0]) for row in conn.execute('SELECT weight FROM movie, tagweight WHERE movie.movie_id = ' + str(search_movie.movie_id) + ' AND tagweight.movie_id = movie.movie_id')]
@@ -167,19 +197,18 @@ def movie_to_suggestions(search_movie):
         adjustment_dict[adjustment.movie_key] = [adjustment.movie_referenced, adjustment.offset]
         adjustment_dict[adjustment.movie_referenced] = [adjustment.movie_key, adjustment.offset]
 
-    for movie in random.sample(movies, 1800):
+    for movie in random.sample(movies, 3000):
         if (movie.movie_id == search_movie.movie_id):
             continue
         diff = 0
-        test_list = [int(row[0]) for row in conn.execute('SELECT weight FROM movie, tagweight WHERE movie.movie_id = ' + str(movie.movie_id) + ' AND tagweight.movie_id = movie.movie_id')]
 
         for i in range(0, 1128) :
-            diff += abs(search_list[i] - test_list[i])
+            diff += abs(search_list[i] - MOVIE_DICT[movie.movie_id][i])
         avg_diff = diff / 1128
         diff = 0
         for i in range(0, 1128) :
-            if (abs(search_list[i] - test_list[i]) > avg_diff) :
-                diff += abs(search_list[i] - test_list[i])
+            if (abs(search_list[i] - MOVIE_DICT[movie.movie_id][i]) > avg_diff) :
+                diff += abs(search_list[i] - MOVIE_DICT[movie.movie_id][i])
         diff = int((diff / 1128) * 10000)
         if adjustment_dict.get(movie.movie_id):
             diff += adjustment_dict[movie.movie_id][1]
@@ -203,11 +232,11 @@ def movie_to_suggestions(search_movie):
     conn.close()
     return [pair[0].name for pair in matches]
 
-def tag_to_suggestions(tag) :
+def tag_to_suggestions(tag):
     tag_id = tag.tag_id
     movies = Movie.query.all()
     matches = [[-1, float(-1)], [-1, float(-1)], [-1, float(-1)]]
-    for movie in random.sample(movies, 2000):
+    for movie in random.sample(movies, 500):
         this_tag = db.session.query(TagWeight).filter(TagWeight.movie_id == movie.movie_id, TagWeight.tag_id == tag_id).first()
         weight = this_tag.weight
         if (weight > matches[2][1]):
@@ -247,9 +276,23 @@ def bubble_up_new_movie(movie, weight, matches):
             break
         x += 1
 
+# Preprocessing on startup to speed up execution time
+MOVIE_DICT = {}
+TAG_DICT = {}
+
+def speedup():
+    global MOVIE_DICT
+    global TAG_DICT
+    conn = engine.connect()
+    for movie in Movie.query.all():
+        MOVIE_DICT[movie.movie_id] = [int(row[0]) for row in conn.execute('SELECT weight FROM movie, tagweight WHERE movie.movie_id = ' + str(movie.movie_id) + ' AND tagweight.movie_id = movie.movie_id')]
+    conn.close()
 
 @main.route('/')
 def index():
+    global MOVIE_DICT
+    if len(MOVIE_DICT) == 0:
+        speedup()
     return render_template('index.html')
 
 @main.route('/about')

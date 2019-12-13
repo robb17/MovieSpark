@@ -27,7 +27,6 @@
 		    	for (var i = 0; i < 3; i++) {
     				$("#query_results" + (i + 1)).html('');
     			}
-    			$("#query_window").animate({'top': '40%'});
 			});
 			reset_thumbs();
 		});
@@ -39,7 +38,7 @@
 			$("#query_results" + (i + 1)).html('Loading...');
 		}
 		$("#search_window").animate({'left': '-100vw', 'right': '100vw'}, default_delay, function() {
-			$("#query_window").animate({'left': '0vw', 'right': '0vw', 'top': '40%'}, default_delay);
+			$("#query_window").animate({'left': '0vw', 'right': '0vw', 'top': '40px'}, default_delay);
 		});
 	}
 
@@ -105,7 +104,7 @@
 			}
 			movie_titles[i] = data[i - 1][1];
 		}
-		$("#query_window").animate({'left': '0vw', 'right': '0vw', 'top': '40px'}, 300);
+		$("#query_window").animate({'left': '0vw', 'right': '0vw', 'top': '40px'}, default_delay);
 	});
 
 	socket.on('feedback response', function(data) {
@@ -199,7 +198,7 @@
 			<button class="button is-block is-info is-large is-fullwidth" id="submit_query">Go!</button>
 		</div>
 	</div>
-	<div class="box is-mobile is-centered is-fullwidth" id="query_window" style="left: 100vw; right: -100vw; top: 40%; overflow: hidden; position: absolute;">
+	<div class="box is-mobile is-centered is-fullwidth" id="query_window" style="left: 100vw; right: -100vw; top: 40px; overflow: hidden; position: absolute;">
 		<div class="column is-centered has-text-centered">
 			<h1 class="title has-text-black has-text-centered">Results</h1>
 			<div class="has-text-centered" id="query_results">
